@@ -123,7 +123,7 @@ CommandExpLike1 = OpTier<"&&", CommandExpLike2>;
 CommandExpLike2 = OpTier<"|", CommandExpLike3>;
 
 BlockRest: Box<Expr<'input>> = {
-  "NL"* <cmds: (<Command> "NL"+)*> <cmd_last: CommandCallNoNL?> "}" => {
+  <cmds: (<Command> "NL"+)*> <cmd_last: CommandCallNoNL?> "}" => {
     let mut cmds_unboxed: Vec<Expr<'input>> = cmds.into_iter().map(|x| *x).collect();
     if let Some(cmd_last) = cmd_last {
       cmds_unboxed.push(*cmd_last);
@@ -169,7 +169,7 @@ CommandExpLike3: Box<Expr<'input>> = {
   */
   // "(" "NL"* <Expression> "NL"* ")",
 
-  "{" <BlockRest>,
+  "{" "NL"* <BlockRest>,
 };
 
 WordArg: &'input str = {
@@ -189,9 +189,8 @@ CommandCallNoNL: Box<Expr<'input>> = {
   },
 }
 
-
 TypedArgsNoNLWith<TrailSep>: Vec<Expr<'input>> = {
-  "(" "NL"* <mut args: (<Expression> "," "NL"*)*> <arg_last: (<Expression> "NL"* ","? "NL"*)?>  TrailSep => {
+  "(" "NL"* <mut args: (<Expression> "," "NL"*)*> <arg_last: (<Expression> ","? "NL"*)?> TrailSep => {
     let args_unboxed = v.into_iter().map(|x| *x).collect();
     if let Some(arg_last) = arg_last {
       args_unboxed.push(arg_last);
@@ -201,12 +200,9 @@ TypedArgsNoNLWith<TrailSep>: Vec<Expr<'input>> = {
   "(" "NL"* TrailSep =>  vec![],
 }
 
-TypedArgsNoNLNormal = TypedArgsNoNLWith<")">;
-TypedArgsNoNLBlkOpen = TypedArgsNoNLWith<"){">;
-
 TypedArgsNoNL: Vec<Expr<'input>> = {
-  <TypedArgsNoNLNormal>,
-  <mut args_unboxed: TypedArgsNoNLBlkOpen> <blk: BlockRest>
+  <TypedArgsNoNLWith<")">>,
+  <mut args_unboxed: TypedArgsNoNLWith<"){">> "NL"* <blk: BlockRest>
 => {
     args_unboxed.push(*blk);
     args_unboxed
@@ -220,8 +216,7 @@ TypedArgs: Vec<Expr<'input>> = {
   TypedArgsNoNL,
 };
 
-Expression = Expr1;
-Expr1 = OpTier<"or", Expr2>;
+Expression = OpTier<"or", Expr2>;
 Expr2 = OpTier<"and", Expr3>;
 OpRel = {
   "==", "!=", "<=", ">=", "<", ">"
