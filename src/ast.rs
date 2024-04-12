@@ -22,7 +22,6 @@ pub enum Value<'input> {
     VUnit,
     VInt(i64),
     VStr(&'input str),
-    VIdent(&'input str),
     ProcLam(Vec<&'input str>, Box<Expr<'input>>),
 }
 
@@ -33,6 +32,7 @@ pub enum BinOp {
 }
 
 pub enum Expr<'input> {
+    Ident(&'input str),
     Val(Value<'input>),
     Unary(Unop, Box<Expr<'input>>),
     Assign(&'input str, Box<Expr<'input>>),

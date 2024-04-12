@@ -48,24 +48,24 @@ extern {
     "," => Token::COMMA,
     "semicolon" => Token::SEMICOLON,
     "colon" => Token::COLON,
-    "plus" => Token::PLUS,
-    "minus" => Token::MINUS,
-    "mult" => Token::MULT,
-    "div" => Token::DIV,
-    "rem" => Token::REM,
-    "eq" => Token::EQ,
-    "neq" => Token::NEQ,
-    "leq" => Token::LEQ,
-    "geq" => Token::GEQ,
-    "lt" => Token::LT,
-    "gt" => Token::GT,
+    "+" => Token::PLUS,
+    "-" => Token::MINUS,
+    "*" => Token::MULT,
+    "/" => Token::DIV,
+    "%" => Token::REM,
+    "==" => Token::EQ,
+    "!=" => Token::NEQ,
+    "<=" => Token::LEQ,
+    ">=" => Token::GEQ,
+    "<" => Token::LT,
+    ">" => Token::GT,
     "and" => Token::AND,
     "or" => Token::OR,
-    "bshiftl" => Token::BSHIFTL,
-    "bshiftr" => Token::BSHIFTR,
-    "bxor" => Token::BXOR,
-    "band" => Token::BAND,
-    "concat" => Token::CONCAT,
+    "<<" => Token::BSHIFTL,
+    ">>" => Token::BSHIFTR,
+    "^" => Token::BXOR,
+    "&" => Token::BAND,
+    "++" => Token::CONCAT,
   }
 }
 
@@ -111,17 +111,6 @@ CommandIfClose: Box<Expr<'input>> = {
   },
 }
 
-CommandCallNoNL: Box<Expr<'input>> = {
-  <name: "word"> <args: WordArg*> <targets: TypedArgs?> => {
-    let targets = 
-      match targets {
-        None => vec![],
-        Some(targets) => targets
-      };
-    Box::new(Expr::Command(name, args, targets))
-  },
-}
-
 OpTier<Op, NextTier>: Box<Expr<'input>> = {
     <lhs: OpTier<Op,NextTier>> <bop: Op> <rhs: NextTier> => {
       Box::new(Expr::Binary(lhs, BINOP_MAP.get(&bop).unwrap(), rhs))
@@ -133,159 +122,138 @@ CommandExpLike = OpTier<"||", CommandExpLike1>;
 CommandExpLike1 = OpTier<"&&", CommandExpLike2>;
 CommandExpLike2 = OpTier<"|", CommandExpLike3>;
 
-CommandExpLike3: Box<Expr<'input>> = {
-  <name: "word"> <args: WordArg*> <targets: TypedArgs?> "NL" => {
-    let targets = 
-      match targets {
-        None => vec![],
-        Some(targets) => targets
-      };
-    Box::new(Expr::Command(name, args, targets))
-  },
-  Literal => Box::new(Expr::Val(<>)),
-  "(" "NL"* <Expression> "NL"* ")",
-
-  "{" "NL"* <cmds: (<Command> "NL"+)*> <cmd_last: CommandCallNoNL?> "}" => {
+BlockRest: Box<Expr<'input>> = {
+  "NL"* <cmds: (<Command> "NL"+)*> <cmd_last: CommandCallNoNL?> "}" => {
     let mut cmds_unboxed: Vec<Expr<'input>> = cmds.into_iter().map(|x| *x).collect();
     if let Some(cmd_last) = cmd_last {
       cmds_unboxed.push(*cmd_last);
     }
     Box::new(Expr::Block(cmds_unboxed))
   },
+}
+
+CommandExpLike3: Box<Expr<'input>> = {
+  <name: "word"> <args: WordArg*> <targets: TypedArgs> => {
+    Box::new(Expr::Command(name, args, targets))
+  },
+  Literal => Box::new(Expr::Val(<>)),
+  /* 
+      "for" "word" "in" "word"
+    At that point, if the next token is a `"("`, then the parser can proceed in two different
+    ways.
+
+    First, the parser could execute the production at
+    /home/lyh/Documents/CS/hmc/hermicrab/src/grammar.lalrpop:222:3: 222:52, which would consume
+    the top 1 token(s) from the stack and produce a `LiteralNoUnit`. This might then yield a parse
+    tree like
+      "for" "word" "in" "word"                          ╷ CommandIfClose
+      │                 ├─LiteralNoUnit─────────────────┤              │
+      │                 ├─Literal───────────────────────┤              │
+      │                 ├─CommandExpLike3───────────────┤              │
+      │                 ├─OpTier<"|", CommandExpLike3>──┤              │
+      │                 ├─CommandExpLike2───────────────┤              │
+      │                 ├─OpTier<"&&", CommandExpLike2>─┤              │
+      │                 ├─CommandExpLike1───────────────┤              │
+      │                 ├─OpTier<"||", CommandExpLike1>─┤              │
+      │                 ├─CommandExpLike────────────────┤              │
+      │                 ├─CommandIfClose────────────────┤              │
+      │                 └─Command───────────────────────┘              │
+      └─CommandIfClose─────────────────────────────────────────────────┘
+
+    Alternatively, the parser could shift the `"("` token and later use it to construct a
+    `TypedArgsNoNL`. This might then yield a parse tree like
+      "word" "("           ")"
+      │      ├─TypedArgsNoNL─┤
+      │      └─TypedArgs─────┤
+      └─CommandExpLike3──────┘
+  */
+  // "(" "NL"* <Expression> "NL"* ")",
+
+  "{" <BlockRest>,
 };
 
 WordArg: &'input str = {
   "word",
+  "decimal_lit", 
+  "literal_string", 
+};
+
+CommandCallNoNL: Box<Expr<'input>> = {
+  <name: "word"> <args: WordArg*> <targets: TypedArgsNoNL?> => {
+    let targets = 
+      match targets {
+        Some(targets) => targets,
+        None => vec![],
+      };
+    Box::new(Expr::Command(name, args, targets))
+  },
+}
+
+
+TypedArgsNoNLWith<TrailSep>: Vec<Expr<'input>> = {
+  "(" "NL"* <mut args: (<Expression> "," "NL"*)*> <arg_last: (Expression ","?)?>  TrailSep => {
+    let args_unboxed = v.into_iter().map(|x| *x).collect();
+    if let Some(arg_last) = arg_last {
+      args_unboxed.push(arg_last);
+    }
+    args_unboxed
+  }
+  "(" "NL"* TrailSep =>  vec![],
+}
+
+TypedArgsNoNLNormal = TypedArgsNoNLWith<")">;
+// TypedArgsNoNLBlkOpen = TypedArgsNoNLWith<"){">;
+
+TypedArgsNoNL: Vec<Expr<'input>> = {
+  <TypedArgsNoNLNormal>,
+  <mut args_unboxed: TypedArgsNoNLWith<"){">> <blk: BlockRest>
+=> {
+    args_unboxed.push(*blk);
+    args_unboxed
+  }
+
 };
 
 TypedArgs: Vec<Expr<'input>> = {
-  "(" "NL"* ")" =>  vec![],
-  // // TODO: fix newlines in this rule
-  // "(" NL* <SepNonemptyListTrailed<",", Expression>> ")" => {
-  //   <>.into_iter().map(|x| *x).collect()
-  // }
+  // must have this NL to separate different cmds
+  "NL"  =>  vec![],
+  TypedArgsNoNL,
 };
 
-Expression: Box<Expr<'input>> = {
-  <"word"> => Box::new(Expr::Val(Value::VIdent(<>))),
+Expression = Expr1;
+Expr1 = OpTier<"or", Expr2>;
+Expr2 = OpTier<"and", Expr3>;
+OpRel = {
+  "==", "!=", "<=", ">=", "<", ">"
+}
+Expr3 = OpTier<OpRel, Expr4>;
+Expr4 = OpTier<"^", Expr5>;
+Expr5 = OpTier<"&", Expr6>;
+OpShift = {
+  "<<", ">>",
+}
+Expr6 = OpTier<OpShift, Expr7>;
+Expr7 = OpTier<"++", Expr8>;
+OpAdd = {
+  "+", "-",
+}
+Expr8 = OpTier<OpAdd, Expr9>;
+OpMul = {
+  "*", "/", "%",
+}
+Expr9 = OpTier<OpMul, ExprSimple>;
+
+ExprSimple: Box<Expr<'input>> = {
+  "(" <Expression> ")",
+  "()" => Box::new(Expr::Val(Value::VUnit)),
+  LiteralNoUnit => Box::new(Expr::Val(<>)),
+}
+
+LiteralNoUnit: Value<'input> = {
+ "literal_string" => Value::VStr(<>)
 }
 
 Literal: Value<'input> = {
   "()" => Value::VUnit,
+  LiteralNoUnit,
 }
-
-// cmd_explike: 
-//   (* the only rule that enforces me to drag newline into parser phase *)
-//   | command_name=WORD word_args=list(word_arg) targs=typed_args {
-//     Command(command_name, word_args, targs)
-//   }
-//   | LPAREN NL* e=exp NL* RPAREN { e }
-//   | LBRACE NL* cmds=cmds NL* RBRACE {
-//     Block cmds
-//   }
-//   | cmd1=cmd_explike PIPE NL* cmd2=cmd_explike {
-//     Pipe(cmd1, cmd2)
-//   }
-//   (* BUG: for now we just hard code an exit code but this should be passed on *)
-//   | lhs=cmd_explike AND_THEN NL* rhs=cmd_explike {
-//     If(lhs, rhs, fail)
-//   }
-//   | lhs=cmd_explike OR_ELSE NL* rhs=cmd_explike {
-//     If(lhs, pass, rhs)
-//   }
-// word_arg:
-//   | w=WORD { Word w }
-//   | i=INT { Int i }
-//   | s=STR { String s }
-//
-//
-// (* I have to hand roll this as precedence doesn't work.  *)
-//
-// tiersleft(ThisTier, Op, NextTier):
-//   | e1=ThisTier op=Op e2=NextTier { BinOp(op, e1, e2) }
-//   | e=NextTier { e }
-//
-// op_or:
-//   | OR { Lor }
-// exp:
-//   | e=tiersleft(exp, op_or, exp1) { e }
-//
-// op_and:
-//   | AND { Land }
-// exp1:
-//   | e=tiersleft(exp1, op_and, exp2) { e }
-//
-// op_rel:
-//   | EQ { Eq }
-//   | NEQ { NotEq }
-//   | LT { LessThan }
-//   | LEQ { LessEq }
-//   | GT { GreaterThan }
-//   | GEQ { GreaterEq }
-// exp2:
-//   | e=tiersleft(exp2, op_rel, exp3) { e }
-//
-// op_bor:
-//   | PIPE { BOr }
-// exp3:
-//   | e=tiersleft(exp3, op_or, exp4) { e }
-//
-// op_bxor:
-//   | BXOR { BXor }
-// exp4:
-//   | e=tiersleft(exp4, op_bxor, exp5) { e }
-//
-// op_band:
-//   | BAND { BAnd }
-// exp5:
-//   | e=tiersleft(exp5, op_band, exp6) { e }
-//
-// op_bshift:
-//   | BSHIFTL { BShiftL }
-//   | BSHIFTR { BShiftR }
-// exp6:
-//   | e=tiersleft(exp6, op_bshift, exp7) { e }
-//
-// op_add:
-//   | PLUS { Add }
-//   | MINUS { Sub }
-// exp7:
-//   | e=tiersleft(exp7, op_add, exp8) { e }
-//
-// op_mul:
-//   | MULT { Mul }
-//   | DIV { Div } 
-//   | REM { Mod }
-// exp8:
-//   | e=tiersleft(exp8, op_mul, exp9) { e }
-//
-// op_str:
-//   | CONCAT { Concat }
-// exp9:
-//   | e=tiersleft(exp9, op_mul, exp_lit) { e }
-//
-// exp_lit: 
-//   | l=literal { Val(l) }
-//   | LPAREN NL* e=exp NL* RPAREN { e }
-//
-// literal:
-//   | UNIT { Unit() } 
-//   | i=INT { Int(i) }
-//   | s=STR { String s }
-//   (* TODO: parse lambda *)
-//
-// typed_args:
-//   | UNIT {
-//     []
-//   }
-//   | LPAREN NL* exps=exps NL* RPAREN {
-//     exps
-//   }
-//   (* for disambiguity we force the token `)` and `{` to touch here *)
-//   | LPAREN NL* exps=exps NL* RPARENLBRACE NL* cmds=cmds RBRACE {
-//     exps @ [Block cmds]
-//   }
-//   | NL { (* must have this NL to separate different cmds *)
-//     []
-//   }
-// %%
