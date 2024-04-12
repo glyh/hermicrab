@@ -21,37 +21,34 @@ impl From<ParseIntError> for LexicalError {
         LexicalError::InvalidInteger(err)
     }
 }
-fn as_str(lex: &mut Lexer<Token>) -> Option<String> {
-    Some(lex.slice().to_string())
-}
 
-#[derive(Logos, Clone, Debug, PartialEq)]
+#[derive(Logos, Clone, Debug, PartialEq, Hash, Eq)]
 // BUG: comments are not nestable for now
 #[logos(skip r"[ \t\f]+|#(\n|[^\|][^\n]*)|#\|([^|]|\|[^#])*\|?\|#", error = LexicalError)]
-pub enum Token {
+pub enum Token<'input> {
     #[regex(r"\r|\n|\r\n")]
     NL,
 
-    #[regex("-?(0|[1-9][0-9]*)", callback = as_str)]
-    DecimalLit(String),
+    #[regex("-?(0|[1-9][0-9]*)")]
+    DecimalLit(&'input str),
 
-    #[regex("0x[0-9a-fA-F]+", callback = as_str)]
-    HexLit(String),
+    #[regex("0x[0-9a-fA-F]+")]
+    HexLit(&'input str),
 
     // #[regex(r"#(\n|[^\|][^\n]*)")]
 
     // #[regex("[_a-zA-Z][_0-9a-zA-Z]*", |lex| lex.slice().to_string())]
-    // Identifier(String),
-    #[regex(r"'([^'\\]|\\['\\])*'", callback = as_str)]
-    LiteralString(String),
+    // Identifier(&'input str),
+    #[regex(r"'([^'\\]|\\['\\])*'")]
+    LiteralString(&'input str),
 
     // TODO: support templated strings in multiline string
-    #[regex(r"\\\\\\[^\n]*", callback = as_str)]
-    MultilineStringPart(String),
+    #[regex(r"\\\\\\[^\n]*")]
+    MultilineStringPart(&'input str),
 
     // TODO: support templated string to contain arbitrary expression
-    #[regex(r#""([^"\\{}]|\\["\\{}$]|\$[a-z]*)*""#, callback = as_str)]
-    TemplStr(String),
+    #[regex(r#""([^"\\{}]|\\["\\{}$]|\$[a-z]*)*""#)]
+    TemplStr(&'input str),
     // NOTE: the below won't work as it creates conflicts. We may actually need to invoke the
     // parser multiple times.
 
@@ -61,23 +58,24 @@ pub enum Token {
     // TemplStrEnd,
     // #[regex(r#"}([^"\\{}]|\\["\\{}$]|\$[a-z]*)*\$\{"#)]
     // TemplStrMid,
-    #[regex(r"~[a-z][a-zA-Z0-9_]*", callback = as_str)]
-    SigilIdent(String),
+    #[regex(r"~[a-z][a-zA-Z0-9_]*")]
+    SigilIdent(&'input str),
 
-    #[regex(r"~[a-z]\(([^)\\]|\\[)\\])*\)", callback = as_str)]
-    SigilParened(String),
+    #[regex(r"~[a-z]\(([^)\\]|\\[)\\])*\)")]
+    SigilParened(&'input str),
 
-    #[regex(r"~[a-z]\[([^]\\]|\\[\]\\])*\]", callback = as_str)]
-    SigilBracketed(String),
+    #[regex(r"~[a-z]\[([^]\\]|\\[\]\\])*\]")]
+    SigilBracketed(&'input str),
 
-    #[regex(r"~[a-z]\{([^}\\]|\\[}\\])*\}", callback = as_str)]
-    SigilBraced(String),
+    #[regex(r"~[a-z]\{([^}\\]|\\[}\\])*\}")]
+    SigilBraced(&'input str),
 
-    #[regex(r"/([^/\\]|\\[\\/])*/[a-z]*", callback = as_str)]
-    RegexLike(String),
+    #[regex(r"/([^/\\]|\\[\\/])*/[a-z]*")]
+    RegexLike(&'input str),
 
-    #[regex(r"[^ \t\f]+", priority = 0, callback = as_str)]
-    Word(String),
+    // `=` is forbidden because we want assignments
+    #[regex(r"[^= \t\f]+", priority = 0)]
+    Word(&'input str),
 
     #[token("){")]
     RPARENLBRACE,
@@ -162,7 +160,7 @@ pub enum Token {
     CONCAT,
 }
 
-impl fmt::Display for Token {
+impl<'input> fmt::Display for Token<'input> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "{:?}", self)
     }
@@ -172,7 +170,7 @@ pub type Spanned<Tok, Loc, Error> = Result<(Loc, Tok, Loc), Error>;
 
 pub struct WrappedLexer<'input> {
     // instead of an iterator over characters, we have a token iterator
-    token_stream: SpannedIter<'input, Token>,
+    token_stream: SpannedIter<'input, Token<'input>>,
 }
 
 impl<'input> WrappedLexer<'input> {
@@ -185,7 +183,7 @@ impl<'input> WrappedLexer<'input> {
 }
 
 impl<'input> Iterator for WrappedLexer<'input> {
-    type Item = Spanned<Token, usize, LexicalError>;
+    type Item = Spanned<Token<'input>, usize, LexicalError>;
 
     fn next(&mut self) -> Option<Self::Item> {
         self.token_stream
@@ -194,7 +192,7 @@ impl<'input> Iterator for WrappedLexer<'input> {
     }
 }
 
-fn hey() {
-    let a = vec![Box::new(Token::IF)];
-    // a.into_iter().map(|x| *x).collect;
-}
+// fn hey() {
+//     let a = vec![Box::new(Token::IF)];
+//     // a.into_iter().map(|x| *x).collect;
+// }

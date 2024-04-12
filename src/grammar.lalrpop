@@ -1,50 +1,50 @@
 // vim: set syntax=rust:
+// NOTE: please feed an NL to input so commands can be parsed correctly
 
-// use std::str::FromStr;
 use crate::parser::{LexicalError, Token};
-use crate::ast::{Expr, Value, EXPR_PASS};
+use crate::ast::{Expr, Value, EXPR_PASS, BINOP_MAP};
 
-
-grammar;
+grammar<'input>;
+// grammar<'input, 'err, 'wcard>(
+//     src_id: FileId,
+//     errors: &'err mut Vec<ErrorRecovery<usize, Token<'input>, ParseError>>,
+//     next_wildcard_id: &'wcard mut usize,
+// );
 
 extern {
 
   type Location = usize;
   type Error = LexicalError;
 
-  enum Token {
+  enum Token<'input> {
     "NL" => Token::NL,
-    "decimal_lit" => Token::DecimalLit(<String>),
+    "decimal_lit" => Token::DecimalLit(<&'input str>),
     // TODO: "hex_lit"
-    "literal_string" => Token::LiteralString(<String>),
-    "multiline_string_part" => Token::MultilineStringPart(<String>),
-    "templ_str" => Token::TemplStr(<String>),
-    "sigil_ident" => Token::SigilIdent(<String>),
-    "sigil_parened" => Token::SigilParened(<String>),
-    "sigil_bracketed" => Token::SigilBracketed(<String>),
-    "sigil_braced" => Token::SigilBraced(<String>),
-    "regex_like" => Token::RegexLike(<String>),
-    "word" => Token::Word(<String>),
-
-    "rparenlbrace" => Token::RPARENLBRACE,
+    "literal_string" => Token::LiteralString(<&'input str>),
+    "multiline_string_part" => Token::MultilineStringPart(<&'input str>),
+    "templ_str" => Token::TemplStr(<&'input str>),
+    "sigil_ident" => Token::SigilIdent(<&'input str>),
+    "sigil_parened" => Token::SigilParened(<&'input str>),
+    "sigil_bracketed" => Token::SigilBracketed(<&'input str>),
+    "sigil_braced" => Token::SigilBraced(<&'input str>),
+    "regex_like" => Token::RegexLike(<&'input str>),
+    "word" => Token::Word(<&'input str>),
+    "){" => Token::RPARENLBRACE,
     "()" => Token::UNIT,
     "(" => Token::LPAREN,
     ")" => Token::RPAREN,
-    "lbracket" => Token::LBRACKET,
-    "rbracket" => Token::RBRACKET,
-    "lbrace" => Token::LBRACE,
-    "rbrace" => Token::RBRACE,
-    "do" => Token::DO,
-    "end" => Token::END,
+    "[" => Token::LBRACKET,
+    "]" => Token::RBRACKET,
+    "{" => Token::LBRACE,
+    "}" => Token::RBRACE,
     "if" => Token::IF,
-    "elif" => Token::ELIF,
     "else" => Token::ELSE,
     "for" => Token::FOR,
     "in" => Token::IN,
-    "andthen" => Token::ANDTHEN,
-    "orelse" => Token::ORELSE,
+    "&&" => Token::ANDTHEN,
+    "||" => Token::ORELSE,
     "assign" => Token::ASSIGN,
-    "pipe" => Token::PIPE,
+    "|" => Token::PIPE,
     "," => Token::COMMA,
     "semicolon" => Token::SEMICOLON,
     "colon" => Token::COLON,
@@ -76,21 +76,20 @@ SepNonemptyListTrailed<Sep, T>: Vec<T> = {
   }
 }
 
-SepNonemptyListRelaxed<Sep, T>: Vec<T> = {
-  Sep* <mut v:(<T> Sep+)*> <e:T> Sep* => {
-    v.push(e);
-    v
+pub Program: Vec<Expr<'input>> = {
+  "NL"* <mut v: (<Command> "NL"+)*> <e:Command> "NL"* => {
+    let mut v_unboxed: Vec<Expr<'input>> = v.into_iter().map(|x| *x).collect();
+    v_unboxed.push(*e);
+    v_unboxed
   }
 }
 
-pub Program = SepNonemptyListRelaxed<"NL", Command>;
-
-Command: Box<Expr> = {
-  CommandIfOpen, CommandIfClose
+Command: Box<Expr<'input>> = {
+  CommandIfOpen,
+  CommandIfClose
 } 
 
-CommandIfOpen: Box<Expr> = {
- // <else_clause: ("NL"* "else" "NL"* <Command>)?>
+CommandIfOpen: Box<Expr<'input>> = {
   "if" "NL"* <test: Command> "NL"* <then_clause: CommandIfOpen> => {
     Box::new(Expr::If(test, then_clause, Box::new(EXPR_PASS)))
   },
@@ -102,7 +101,7 @@ CommandIfOpen: Box<Expr> = {
   },
 }
 
-CommandIfClose: Box<Expr> = {
+CommandIfClose: Box<Expr<'input>> = {
   CommandExpLike,
   "if" "NL"* <test: Command> "NL"* <then_clause: CommandIfClose> "NL"* "else" "NL"* <else_clause: CommandIfClose> => {
     Box::new(Expr::If(test, then_clause, else_clause))
@@ -112,7 +111,29 @@ CommandIfClose: Box<Expr> = {
   },
 }
 
-CommandExpLike: Box<Expr> = {
+CommandCallNoNL: Box<Expr<'input>> = {
+  <name: "word"> <args: WordArg*> <targets: TypedArgs?> => {
+    let targets = 
+      match targets {
+        None => vec![],
+        Some(targets) => targets
+      };
+    Box::new(Expr::Command(name, args, targets))
+  },
+}
+
+OpTier<Op, NextTier>: Box<Expr<'input>> = {
+    <lhs: OpTier<Op,NextTier>> <bop: Op> <rhs: NextTier> => {
+      Box::new(Expr::Binary(lhs, BINOP_MAP.get(&bop).unwrap(), rhs))
+    },
+    NextTier
+};
+
+CommandExpLike = OpTier<"||", CommandExpLike1>;
+CommandExpLike1 = OpTier<"&&", CommandExpLike2>;
+CommandExpLike2 = OpTier<"|", CommandExpLike3>;
+
+CommandExpLike3: Box<Expr<'input>> = {
   <name: "word"> <args: WordArg*> <targets: TypedArgs?> "NL" => {
     let targets = 
       match targets {
@@ -122,26 +143,35 @@ CommandExpLike: Box<Expr> = {
     Box::new(Expr::Command(name, args, targets))
   },
   Literal => Box::new(Expr::Val(<>)),
+  "(" "NL"* <Expression> "NL"* ")",
+
+  "{" "NL"* <cmds: (<Command> "NL"+)*> <cmd_last: CommandCallNoNL?> "}" => {
+    let mut cmds_unboxed: Vec<Expr<'input>> = cmds.into_iter().map(|x| *x).collect();
+    if let Some(cmd_last) = cmd_last {
+      cmds_unboxed.push(*cmd_last);
+    }
+    Box::new(Expr::Block(cmds_unboxed))
+  },
 };
 
-WordArg: String = {
+WordArg: &'input str = {
   "word",
-  // <"word"> => Box::new(Value::VIdent(<>)),
 };
 
-TypedArgs: Vec<Expr> = {
-  "(" ")" =>  vec![],
-  "(" <SepNonemptyListTrailed<",", Command>> ")" => {
-    <>.into_iter().map(|x| *x).collect()
-  }
+TypedArgs: Vec<Expr<'input>> = {
+  "(" "NL"* ")" =>  vec![],
+  // // TODO: fix newlines in this rule
+  // "(" NL* <SepNonemptyListTrailed<",", Expression>> ")" => {
+  //   <>.into_iter().map(|x| *x).collect()
+  // }
 };
 
-Literal: Value = {
+Expression: Box<Expr<'input>> = {
+  <"word"> => Box::new(Expr::Val(Value::VIdent(<>))),
+}
+
+Literal: Value<'input> = {
   "()" => Value::VUnit,
-};
-
-Expression: Box<Value> = {
-  <"word"> => Box::new(Value::VIdent(<>)),
 }
 
 // cmd_explike: 
