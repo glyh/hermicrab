@@ -191,7 +191,7 @@ CommandCallNoNL: Box<Expr<'input>> = {
 
 
 TypedArgsNoNLWith<TrailSep>: Vec<Expr<'input>> = {
-  "(" "NL"* <mut args: (<Expression> "," "NL"*)*> <arg_last: (Expression ","?)?>  TrailSep => {
+  "(" "NL"* <mut args: (<Expression> "," "NL"*)*> <arg_last: (<Expression> "NL"* ","? "NL"*)?>  TrailSep => {
     let args_unboxed = v.into_iter().map(|x| *x).collect();
     if let Some(arg_last) = arg_last {
       args_unboxed.push(arg_last);
@@ -202,11 +202,11 @@ TypedArgsNoNLWith<TrailSep>: Vec<Expr<'input>> = {
 }
 
 TypedArgsNoNLNormal = TypedArgsNoNLWith<")">;
-// TypedArgsNoNLBlkOpen = TypedArgsNoNLWith<"){">;
+TypedArgsNoNLBlkOpen = TypedArgsNoNLWith<"){">;
 
 TypedArgsNoNL: Vec<Expr<'input>> = {
   <TypedArgsNoNLNormal>,
-  <mut args_unboxed: TypedArgsNoNLWith<"){">> <blk: BlockRest>
+  <mut args_unboxed: TypedArgsNoNLBlkOpen> <blk: BlockRest>
 => {
     args_unboxed.push(*blk);
     args_unboxed
