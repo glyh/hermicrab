@@ -1,0 +1,261 @@
+// vim: set syntax=rust:
+
+// use std::str::FromStr;
+use crate::parser::{LexicalError, Token};
+use crate::ast::{Expr, Value, EXPR_PASS};
+
+
+grammar;
+
+extern {
+
+  type Location = usize;
+  type Error = LexicalError;
+
+  enum Token {
+    "NL" => Token::NL,
+    "decimal_lit" => Token::DecimalLit(<String>),
+    // TODO: "hex_lit"
+    "literal_string" => Token::LiteralString(<String>),
+    "multiline_string_part" => Token::MultilineStringPart(<String>),
+    "templ_str" => Token::TemplStr(<String>),
+    "sigil_ident" => Token::SigilIdent(<String>),
+    "sigil_parened" => Token::SigilParened(<String>),
+    "sigil_bracketed" => Token::SigilBracketed(<String>),
+    "sigil_braced" => Token::SigilBraced(<String>),
+    "regex_like" => Token::RegexLike(<String>),
+    "word" => Token::Word(<String>),
+
+    "rparenlbrace" => Token::RPARENLBRACE,
+    "()" => Token::UNIT,
+    "(" => Token::LPAREN,
+    ")" => Token::RPAREN,
+    "lbracket" => Token::LBRACKET,
+    "rbracket" => Token::RBRACKET,
+    "lbrace" => Token::LBRACE,
+    "rbrace" => Token::RBRACE,
+    "do" => Token::DO,
+    "end" => Token::END,
+    "if" => Token::IF,
+    "elif" => Token::ELIF,
+    "else" => Token::ELSE,
+    "for" => Token::FOR,
+    "in" => Token::IN,
+    "andthen" => Token::ANDTHEN,
+    "orelse" => Token::ORELSE,
+    "assign" => Token::ASSIGN,
+    "pipe" => Token::PIPE,
+    "," => Token::COMMA,
+    "semicolon" => Token::SEMICOLON,
+    "colon" => Token::COLON,
+    "plus" => Token::PLUS,
+    "minus" => Token::MINUS,
+    "mult" => Token::MULT,
+    "div" => Token::DIV,
+    "rem" => Token::REM,
+    "eq" => Token::EQ,
+    "neq" => Token::NEQ,
+    "leq" => Token::LEQ,
+    "geq" => Token::GEQ,
+    "lt" => Token::LT,
+    "gt" => Token::GT,
+    "and" => Token::AND,
+    "or" => Token::OR,
+    "bshiftl" => Token::BSHIFTL,
+    "bshiftr" => Token::BSHIFTR,
+    "bxor" => Token::BXOR,
+    "band" => Token::BAND,
+    "concat" => Token::CONCAT,
+  }
+}
+
+SepNonemptyListTrailed<Sep, T>: Vec<T> = {
+  <mut v:(<T> Sep)*> <e:T> Sep? => {
+    v.push(e);
+    v
+  }
+}
+
+SepNonemptyListRelaxed<Sep, T>: Vec<T> = {
+  Sep* <mut v:(<T> Sep+)*> <e:T> Sep* => {
+    v.push(e);
+    v
+  }
+}
+
+pub Program = SepNonemptyListRelaxed<"NL", Command>;
+
+Command: Box<Expr> = {
+  CommandIfOpen, CommandIfClose
+} 
+
+CommandIfOpen: Box<Expr> = {
+ // <else_clause: ("NL"* "else" "NL"* <Command>)?>
+  "if" "NL"* <test: Command> "NL"* <then_clause: CommandIfOpen> => {
+    Box::new(Expr::If(test, then_clause, Box::new(EXPR_PASS)))
+  },
+  "if" "NL"* <test: Command> "NL"* <then_clause: CommandIfClose> "NL"* "else" "NL"* <else_clause: CommandIfOpen> => {
+    Box::new(Expr::If(test, then_clause, else_clause))
+  },
+  "for" "NL"* <sentinel: "word"> "NL"* "in" "NL"* <collection: Command> "NL"* <body: CommandIfOpen> => {
+    Box::new(Expr::For(sentinel, collection, body))
+  },
+}
+
+CommandIfClose: Box<Expr> = {
+  CommandExpLike,
+  "if" "NL"* <test: Command> "NL"* <then_clause: CommandIfClose> "NL"* "else" "NL"* <else_clause: CommandIfClose> => {
+    Box::new(Expr::If(test, then_clause, else_clause))
+  },
+  "for" "NL"* <sentinel: "word"> "NL"* "in" "NL"* <collection: Command> "NL"* <body: CommandIfClose> => {
+    Box::new(Expr::For(sentinel, collection, body))
+  },
+}
+
+CommandExpLike: Box<Expr> = {
+  <name: "word"> <args: WordArg*> <targets: TypedArgs?> "NL" => {
+    let targets = 
+      match targets {
+        None => vec![],
+        Some(targets) => targets
+      };
+    Box::new(Expr::Command(name, args, targets))
+  },
+  Literal => Box::new(Expr::Val(<>)),
+};
+
+WordArg: String = {
+  "word",
+  // <"word"> => Box::new(Value::VIdent(<>)),
+};
+
+TypedArgs: Vec<Expr> = {
+  "(" ")" =>  vec![],
+  "(" <SepNonemptyListTrailed<",", Command>> ")" => {
+    <>.into_iter().map(|x| *x).collect()
+  }
+};
+
+Literal: Value = {
+  "()" => Value::VUnit,
+};
+
+Expression: Box<Value> = {
+  <"word"> => Box::new(Value::VIdent(<>)),
+}
+
+// cmd_explike: 
+//   (* the only rule that enforces me to drag newline into parser phase *)
+//   | command_name=WORD word_args=list(word_arg) targs=typed_args {
+//     Command(command_name, word_args, targs)
+//   }
+//   | LPAREN NL* e=exp NL* RPAREN { e }
+//   | LBRACE NL* cmds=cmds NL* RBRACE {
+//     Block cmds
+//   }
+//   | cmd1=cmd_explike PIPE NL* cmd2=cmd_explike {
+//     Pipe(cmd1, cmd2)
+//   }
+//   (* BUG: for now we just hard code an exit code but this should be passed on *)
+//   | lhs=cmd_explike AND_THEN NL* rhs=cmd_explike {
+//     If(lhs, rhs, fail)
+//   }
+//   | lhs=cmd_explike OR_ELSE NL* rhs=cmd_explike {
+//     If(lhs, pass, rhs)
+//   }
+// word_arg:
+//   | w=WORD { Word w }
+//   | i=INT { Int i }
+//   | s=STR { String s }
+//
+//
+// (* I have to hand roll this as precedence doesn't work.  *)
+//
+// tiersleft(ThisTier, Op, NextTier):
+//   | e1=ThisTier op=Op e2=NextTier { BinOp(op, e1, e2) }
+//   | e=NextTier { e }
+//
+// op_or:
+//   | OR { Lor }
+// exp:
+//   | e=tiersleft(exp, op_or, exp1) { e }
+//
+// op_and:
+//   | AND { Land }
+// exp1:
+//   | e=tiersleft(exp1, op_and, exp2) { e }
+//
+// op_rel:
+//   | EQ { Eq }
+//   | NEQ { NotEq }
+//   | LT { LessThan }
+//   | LEQ { LessEq }
+//   | GT { GreaterThan }
+//   | GEQ { GreaterEq }
+// exp2:
+//   | e=tiersleft(exp2, op_rel, exp3) { e }
+//
+// op_bor:
+//   | PIPE { BOr }
+// exp3:
+//   | e=tiersleft(exp3, op_or, exp4) { e }
+//
+// op_bxor:
+//   | BXOR { BXor }
+// exp4:
+//   | e=tiersleft(exp4, op_bxor, exp5) { e }
+//
+// op_band:
+//   | BAND { BAnd }
+// exp5:
+//   | e=tiersleft(exp5, op_band, exp6) { e }
+//
+// op_bshift:
+//   | BSHIFTL { BShiftL }
+//   | BSHIFTR { BShiftR }
+// exp6:
+//   | e=tiersleft(exp6, op_bshift, exp7) { e }
+//
+// op_add:
+//   | PLUS { Add }
+//   | MINUS { Sub }
+// exp7:
+//   | e=tiersleft(exp7, op_add, exp8) { e }
+//
+// op_mul:
+//   | MULT { Mul }
+//   | DIV { Div } 
+//   | REM { Mod }
+// exp8:
+//   | e=tiersleft(exp8, op_mul, exp9) { e }
+//
+// op_str:
+//   | CONCAT { Concat }
+// exp9:
+//   | e=tiersleft(exp9, op_mul, exp_lit) { e }
+//
+// exp_lit: 
+//   | l=literal { Val(l) }
+//   | LPAREN NL* e=exp NL* RPAREN { e }
+//
+// literal:
+//   | UNIT { Unit() } 
+//   | i=INT { Int(i) }
+//   | s=STR { String s }
+//   (* TODO: parse lambda *)
+//
+// typed_args:
+//   | UNIT {
+//     []
+//   }
+//   | LPAREN NL* exps=exps NL* RPAREN {
+//     exps
+//   }
+//   (* for disambiguity we force the token `)` and `{` to touch here *)
+//   | LPAREN NL* exps=exps NL* RPARENLBRACE NL* cmds=cmds RBRACE {
+//     exps @ [Block cmds]
+//   }
+//   | NL { (* must have this NL to separate different cmds *)
+//     []
+//   }
+// %%

@@ -73,18 +73,18 @@ In hmc there's following primitive types
   - has representation `~e0` (exit code 0, which is the same as `()`), `~e1` (exit code 1)
     - need some inspiration from elixir
 - automatic variables, they are dynamic scoped specifically designed proxy that has specific shell-like behaviors.
-  - `~oPATH`
+  - `~?PATH`
     - When evaluated in command language, it evaluates to a `:` separated string `/usr/bin:/bin:/sbin`
     - When evaluated in expression language, it evaluates to `["/usr/bin", "/bin", "/sbin"]`
-  - `~oPID`
+  - `~?PID`
     - Behaves the same as `$BASHPID` in bash
     - In expression language evaluates to a int (TODO: maybe pid type?)
-  - `~oMASTER_PID`
+  - `~?MASTER_PID`
     - Behaves the same as `$$` in bash
     - In expression language evaluates to a int (TODO: maybe pid type?)
-  - `~oCWD` -> `$PWD`
+  - `~?CWD` -> `$PWD`
     - In expression language evaluates to a file path
-  - `~oINTERACTIVE` -> whether shell is interactive 
+  - `~?INTERACTIVE` -> whether shell is interactive 
     - In expression language evaluates to bool
 
 #### The Command Language
