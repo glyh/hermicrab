@@ -35,12 +35,8 @@ Command = {
   "{" "NL"* <BlockRest>,
 };
 
-WordArg: &'input str = {
-  "word",
-};
-
 CommandCallNoNL: Box<Expr<'input>> = {
-  <name: "word"> <args: WordArg*> <targets: TypedArgsNoNL?> => {
+  <name: "word"> <args: "word"*> <targets: TypedArgsNoNL?> => {
     let targets = 
       match targets {
         Some(targets) => targets,
