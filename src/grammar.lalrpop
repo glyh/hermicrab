@@ -17,12 +17,6 @@ extern {
     // TODO: "hex_lit"
     "literal_string" => Token::LiteralString(<&'input str>),
     "multiline_string_part" => Token::MultilineStringPart(<&'input str>),
-    "templ_str" => Token::TemplStr(<&'input str>),
-    "sigil_ident" => Token::SigilIdent(<&'input str>),
-    "sigil_parened" => Token::SigilParened(<&'input str>),
-    "sigil_bracketed" => Token::SigilBracketed(<&'input str>),
-    "sigil_braced" => Token::SigilBraced(<&'input str>),
-    "regex_like" => Token::RegexLike(<&'input str>),
     "word" => Token::Word(<&'input str>),
     "){" => Token::RPARENLBRACE,
     "()" => Token::UNIT,
@@ -32,35 +26,7 @@ extern {
     "]" => Token::RBRACKET,
     "{" => Token::LBRACE,
     "}" => Token::RBRACE,
-    "if" => Token::IF,
-    "else" => Token::ELSE,
-    "for" => Token::FOR,
-    "in" => Token::IN,
-    "&&" => Token::ANDTHEN,
-    "||" => Token::ORELSE,
-    "assign" => Token::ASSIGN,
-    "|" => Token::PIPE,
     "," => Token::COMMA,
-    "semicolon" => Token::SEMICOLON,
-    "colon" => Token::COLON,
-    "+" => Token::PLUS,
-    "-" => Token::MINUS,
-    "*" => Token::MULT,
-    "/" => Token::DIV,
-    "%" => Token::REM,
-    "==" => Token::EQ,
-    "!=" => Token::NEQ,
-    "<=" => Token::LEQ,
-    ">=" => Token::GEQ,
-    "<" => Token::LT,
-    ">" => Token::GT,
-    "and" => Token::AND,
-    "or" => Token::OR,
-    "<<" => Token::BSHIFTL,
-    ">>" => Token::BSHIFTR,
-    "^" => Token::BXOR,
-    "&" => Token::BAND,
-    "++" => Token::CONCAT,
   }
 }
 
@@ -71,57 +37,10 @@ SepNonemptyListTrailed<Sep, T>: Vec<T> = {
   }
 }
 
-pub Program: Vec<Expr<'input>> = {
-  "NL"* <mut v: (<Command> "NL"*)*> <e:Command> "NL"* => {
-    let mut v_unboxed: Vec<Expr<'input>> = v.into_iter().map(|x| *x).collect();
-    v_unboxed.push(*e);
-    v_unboxed
-  },
-}
+pub Program: Vec<Expr<'input>> = Command;
 
-Command: Box<Expr<'input>> = {
-  CommandIfOpen,
-  CommandIfClose,
-} 
-
-CommandIfOpen: Box<Expr<'input>> = {
-  "if" "NL"* <test: Command> "NL"* <then_clause: CommandIfOpen> => {
-    Box::new(Expr::If(test, then_clause, Box::new(EXPR_PASS)))
-  },
-  "if" "NL"* <test: Command> "NL"* <then_clause: CommandIfClose> "NL"* "else" "NL"* <else_clause: CommandIfOpen> => {
-    Box::new(Expr::If(test, then_clause, else_clause))
-  },
-  "for" "NL"* <sentinel: "word"> "NL"* "in" "NL"* <collection: Command> "NL"* <body: CommandIfOpen> => {
-    Box::new(Expr::For(sentinel, collection, body))
-  },
-}
-
-CommandIfClose: Box<Expr<'input>> = {
-  CommandExpLike,
-  "if" "NL"* <test: Command> "NL"* <then_clause: CommandIfClose> "NL"* "else" "NL"* <else_clause: CommandIfClose> => {
-    Box::new(Expr::If(test, then_clause, else_clause))
-  },
-  "for" "NL"* <sentinel: "word"> "NL"* "in" "NL"* <collection: Command> "NL"* <body: CommandIfClose> => {
-    Box::new(Expr::For(sentinel, collection, body))
-  },
-}
-
-OpTier<Op, NextTier>: Box<Expr<'input>> = {
-    <lhs: OpTier<Op,NextTier>> <bop: Op> <rhs: NextTier> => {
-      Box::new(Expr::Binary(lhs, BINOP_MAP.get(&bop).unwrap(), rhs))
-    },
-    NextTier,
-};
-
-CommandExpLike = OpTier<"||", CommandExpLike1>;
-CommandExpLike1 = OpTier<"&&", CommandExpLike2>;
-CommandExpLike2 = OpTier<"|", CommandExpLike3>;
-
-CommandExpLike3: Box<Expr<'input>> = {
-  // <CommandCallNoNL> "NL",
-  "(" "NL"* <Expression> "NL"* ")",
+Command = {
   "{" "NL"* <BlockRest>,
-  Literal => Box::new(Expr::Val(<>)),
 };
 
 WordArg: &'input str = {
@@ -170,31 +89,7 @@ BlockRest: Box<Expr<'input>> = {
   },
 }
 
-Expression = OpTier<"or", Expr2>;
-Expr2 = OpTier<"and", Expr3>;
-OpRel = { "==", "!=", "<=", ">=", "<", ">", }
-Expr3 = OpTier<OpRel, Expr4>;
-Expr4 = OpTier<"^", Expr5>;
-Expr5 = OpTier<"&", Expr6>;
-OpShift = { "<<", ">>", }
-Expr6 = OpTier<OpShift, Expr7>;
-Expr7 = OpTier<"++", Expr8>;
-OpAdd = { "+", "-", }
-Expr8 = OpTier<OpAdd, Expr9>;
-OpMul = { "*", "/", "%", }
-Expr9 = OpTier<OpMul, ExprSimple>;
-
-ExprSimple: Box<Expr<'input>> = {
+Expression: Box<Expr<'input>> = {
   "(" <Expression> ")",
   "()" => Box::new(Expr::Val(Value::VUnit)),
-  LiteralNoUnit => Box::new(Expr::Val(<>)),
-}
-
-LiteralNoUnit: Value<'input> = {
- "literal_string" => Value::VStr(<>),
-}
-
-Literal: Value<'input> = {
-  "()" => Value::VUnit,
-  LiteralNoUnit,
 }
