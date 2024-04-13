@@ -22,6 +22,7 @@ pub enum Value<'input> {
     VUnit,
     VInt(i64),
     VStr(&'input str),
+    VStrNonStatic(String),
     ProcLam(Vec<&'input str>, Box<Expr<'input>>),
 }
 

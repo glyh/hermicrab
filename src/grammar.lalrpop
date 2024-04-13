@@ -121,7 +121,6 @@ CommandExpLike3: Box<Expr<'input>> = {
   <CommandCallNoNL> "NL",
   "(" "NL"* <Expression> "NL"* ")",
   "{" "NL"* <BlockRest>,
-  Literal => Box::new(Expr::Val(<>)),
 };
 
 WordArg: &'input str = {
@@ -190,6 +189,14 @@ ExprSimple: Box<Expr<'input>> = {
 
 LiteralNoUnit: Value<'input> = {
  "literal_string" => Value::VStr(<>),
+  <mut head: "multiline_string_part"> <rest: "multiline_string_part"*> => {
+    let mut out = head.to_owned();
+    for part in rest.into_iter() {
+      out.push_str("\n");
+      out.push_str(part);
+    }
+    Value::VStrNonStatic(out)
+  }
 }
 
 Literal: Value<'input> = {
