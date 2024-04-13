@@ -189,7 +189,7 @@ ExprSimple: Box<Expr<'input>> = {
 
 LiteralNoUnit: Value<'input> = {
   // TODO: parse a literal string
- "literal_string" => Value::VStr(<>),
+ "literal_string" => Value::VStr(<>.to_owned()),
   <mut head: "multiline_string_part"> <rest: "multiline_string_part"*> => {
     // strips out the `\\\` in the front
     let mut out = head[3..].to_owned();
