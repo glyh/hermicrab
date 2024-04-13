@@ -16,7 +16,6 @@ extern {
     "decimal_lit" => Token::DecimalLit(<&'input str>),
     // TODO: "hex_lit"
     "literal_string" => Token::LiteralString(<&'input str>),
-    "multiline_string_part" => Token::MultilineStringPart(<&'input str>),
     "word" => Token::Word(<&'input str>),
     "){" => Token::RPARENLBRACE,
     "()" => Token::UNIT,
@@ -27,13 +26,6 @@ extern {
     "{" => Token::LBRACE,
     "}" => Token::RBRACE,
     "," => Token::COMMA,
-  }
-}
-
-SepNonemptyListTrailed<Sep, T>: Vec<T> = {
-  <mut v:(<T> Sep)*> <e:T> Sep? => {
-    v.push(e);
-    v
   }
 }
 
