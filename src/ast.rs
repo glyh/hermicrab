@@ -21,8 +21,7 @@ use crate::parser::Token;
 pub enum Value<'input> {
     VUnit,
     VInt(i64),
-    VStr(&'input str),
-    VStrNonStatic(String),
+    VStr(String),
     ProcLam(Vec<&'input str>, Box<Expr<'input>>),
 }
 

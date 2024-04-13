@@ -188,6 +188,7 @@ ExprSimple: Box<Expr<'input>> = {
 }
 
 LiteralNoUnit: Value<'input> = {
+  // TODO: parse a literal string
  "literal_string" => Value::VStr(<>),
   <mut head: "multiline_string_part"> <rest: "multiline_string_part"*> => {
     // strips out the `\\\` in the front
@@ -196,7 +197,7 @@ LiteralNoUnit: Value<'input> = {
       out.push_str("\n");
       out.push_str(&part[3..]);
     }
-    Value::VStrNonStatic(out)
+    Value::VStr(out)
   },
   "decimal_lit" => {
     Value::VInt(<>.parse::<i64>().unwrap())
