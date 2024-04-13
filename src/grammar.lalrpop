@@ -142,11 +142,9 @@ CommandCallNoNL: Box<Expr<'input>> = {
 }
 
 TypedArgsNoNLM<RSep>: Vec<Expr<'input>> = {
-  "(" "NL"* <mut args: (<Expression> "," "NL"*)*> <arg_last: (<Expression> ","? "NL"*)?> RSep => {
+  "(" "NL"* <mut args: (<Expression> "," "NL"*)*> <arg_last: Expression> ","? "NL"* RSep => {
     let mut args_unboxed: Vec<_> = args.into_iter().map(|x| *x).collect();
-    if let Some(arg_last) = arg_last {
-      args_unboxed.push(*arg_last);
-    }
+    args_unboxed.push(*arg_last);
     args_unboxed
   },
   "(" "NL"* RSep =>  vec![],
