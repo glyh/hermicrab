@@ -192,7 +192,18 @@ impl<'input> Iterator for WrappedLexer<'input> {
     }
 }
 
-// fn hey() {
-//     let a = vec![Box::new(Token::IF)];
-//     // a.into_iter().map(|x| *x).collect;
-// }
+#[cfg(test)]
+mod tests {
+    use crate::{grammar::ProgramParser, parser::WrappedLexer};
+
+    #[test]
+    fn test_parse() {
+        let source_code = std::fs::read_to_string("myscript.toy").unwrap();
+        let lexer = WrappedLexer::new(&source_code[..]);
+        let parser = ProgramParser::new();
+        let ast = parser.parse(lexer).unwrap();
+        println!("{}", ast);
+
+        assert_eq!("{:?}", "wow");
+    }
+}
