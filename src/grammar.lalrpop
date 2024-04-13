@@ -118,7 +118,7 @@ CommandExpLike1 = OpTier<"&&", CommandExpLike2>;
 CommandExpLike2 = OpTier<"|", CommandExpLike3>;
 
 CommandExpLike3: Box<Expr<'input>> = {
-  // <CommandCallNoNL> "NL",
+  <CommandCallNoNL> "NL",
   "(" "NL"* <Expression> "NL"* ")",
   "{" "NL"* <BlockRest>,
   Literal => Box::new(Expr::Val(<>)),
