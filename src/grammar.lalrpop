@@ -190,10 +190,10 @@ ExprSimple: Box<Expr<'input>> = {
 LiteralNoUnit: Value<'input> = {
  "literal_string" => Value::VStr(<>),
   <mut head: "multiline_string_part"> <rest: "multiline_string_part"*> => {
-    let mut out = head.to_owned();
+    let mut out = head[3..].to_owned();
     for part in rest.into_iter() {
       out.push_str("\n");
-      out.push_str(part);
+      out.push_str(part[3..]);
     }
     Value::VStrNonStatic(out)
   }
