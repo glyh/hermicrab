@@ -45,8 +45,6 @@ Command = {
 
 WordArg: &'input str = {
   "word",
-  "decimal_lit",
-  "literal_string", 
 };
 
 CommandCallNoNL: Box<Expr<'input>> = {
