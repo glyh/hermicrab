@@ -5,11 +5,6 @@ use crate::parser::{LexicalError, Token};
 use crate::ast::{Expr, Value, EXPR_PASS, BINOP_MAP};
 
 grammar<'input>;
-// grammar<'input, 'err, 'wcard>(
-//     src_id: FileId,
-//     errors: &'err mut Vec<ErrorRecovery<usize, Token<'input>, ParseError>>,
-//     next_wildcard_id: &'wcard mut usize,
-// );
 
 extern {
 
@@ -77,16 +72,16 @@ SepNonemptyListTrailed<Sep, T>: Vec<T> = {
 }
 
 pub Program: Vec<Expr<'input>> = {
-  "NL"* <mut v: (<Command> "NL"+)*> <e:Command> "NL"* => {
+  "NL"* <mut v: (<Command> "NL"*)*> <e:Command> "NL"* => {
     let mut v_unboxed: Vec<Expr<'input>> = v.into_iter().map(|x| *x).collect();
     v_unboxed.push(*e);
     v_unboxed
-  }
+  },
 }
 
 Command: Box<Expr<'input>> = {
   CommandIfOpen,
-  CommandIfClose
+  CommandIfClose,
 } 
 
 CommandIfOpen: Box<Expr<'input>> = {
@@ -115,66 +110,23 @@ OpTier<Op, NextTier>: Box<Expr<'input>> = {
     <lhs: OpTier<Op,NextTier>> <bop: Op> <rhs: NextTier> => {
       Box::new(Expr::Binary(lhs, BINOP_MAP.get(&bop).unwrap(), rhs))
     },
-    NextTier
+    NextTier,
 };
 
 CommandExpLike = OpTier<"||", CommandExpLike1>;
 CommandExpLike1 = OpTier<"&&", CommandExpLike2>;
 CommandExpLike2 = OpTier<"|", CommandExpLike3>;
 
-BlockRest: Box<Expr<'input>> = {
-  <cmds: (<Command> "NL"+)*> <cmd_last: CommandCallNoNL?> "}" => {
-    let mut cmds_unboxed: Vec<Expr<'input>> = cmds.into_iter().map(|x| *x).collect();
-    if let Some(cmd_last) = cmd_last {
-      cmds_unboxed.push(*cmd_last);
-    }
-    Box::new(Expr::Block(cmds_unboxed))
-  },
-}
-
 CommandExpLike3: Box<Expr<'input>> = {
-  <name: "word"> <args: WordArg*> <targets: TypedArgs> => {
-    Box::new(Expr::Command(name, args, targets))
-  },
-  Literal => Box::new(Expr::Val(<>)),
-  /* 
-      "for" "word" "in" "word"
-    At that point, if the next token is a `"("`, then the parser can proceed in two different
-    ways.
-
-    First, the parser could execute the production at
-    /home/lyh/Documents/CS/hmc/hermicrab/src/grammar.lalrpop:222:3: 222:52, which would consume
-    the top 1 token(s) from the stack and produce a `LiteralNoUnit`. This might then yield a parse
-    tree like
-      "for" "word" "in" "word"                          ╷ CommandIfClose
-      │                 ├─LiteralNoUnit─────────────────┤              │
-      │                 ├─Literal───────────────────────┤              │
-      │                 ├─CommandExpLike3───────────────┤              │
-      │                 ├─OpTier<"|", CommandExpLike3>──┤              │
-      │                 ├─CommandExpLike2───────────────┤              │
-      │                 ├─OpTier<"&&", CommandExpLike2>─┤              │
-      │                 ├─CommandExpLike1───────────────┤              │
-      │                 ├─OpTier<"||", CommandExpLike1>─┤              │
-      │                 ├─CommandExpLike────────────────┤              │
-      │                 ├─CommandIfClose────────────────┤              │
-      │                 └─Command───────────────────────┘              │
-      └─CommandIfClose─────────────────────────────────────────────────┘
-
-    Alternatively, the parser could shift the `"("` token and later use it to construct a
-    `TypedArgsNoNL`. This might then yield a parse tree like
-      "word" "("           ")"
-      │      ├─TypedArgsNoNL─┤
-      │      └─TypedArgs─────┤
-      └─CommandExpLike3──────┘
-  */
-  // "(" "NL"* <Expression> "NL"* ")",
-
+  // <CommandCallNoNL> "NL",
+  "(" "NL"* <Expression> "NL"* ")",
   "{" "NL"* <BlockRest>,
+  Literal => Box::new(Expr::Val(<>)),
 };
 
 WordArg: &'input str = {
   "word",
-  "decimal_lit", 
+  "decimal_lit",
   "literal_string", 
 };
 
@@ -189,53 +141,47 @@ CommandCallNoNL: Box<Expr<'input>> = {
   },
 }
 
-TypedArgsNoNLWith<TrailSep>: Vec<Expr<'input>> = {
-  "(" "NL"* <mut args: (<Expression> "," "NL"*)*> <arg_last: (<Expression> ","? "NL"*)?> TrailSep => {
-    let args_unboxed = v.into_iter().map(|x| *x).collect();
+TypedArgsNoNLM<RSep>: Vec<Expr<'input>> = {
+  "(" "NL"* <mut args: (<Expression> "," "NL"*)*> <arg_last: (<Expression> ","? "NL"*)?> RSep => {
+    let mut args_unboxed: Vec<_> = args.into_iter().map(|x| *x).collect();
     if let Some(arg_last) = arg_last {
-      args_unboxed.push(arg_last);
+      args_unboxed.push(*arg_last);
     }
     args_unboxed
-  }
-  "(" "NL"* TrailSep =>  vec![],
+  },
+  "(" "NL"* RSep =>  vec![],
 }
 
 TypedArgsNoNL: Vec<Expr<'input>> = {
-  <TypedArgsNoNLWith<")">>,
-  <mut args_unboxed: TypedArgsNoNLWith<"){">> "NL"* <blk: BlockRest>
-=> {
+  <TypedArgsNoNLM<")">>,
+  <mut args_unboxed: TypedArgsNoNLM<"){">> "NL"* <blk: BlockRest> => {
     args_unboxed.push(*blk);
     args_unboxed
-  }
-
+  },
 };
 
-TypedArgs: Vec<Expr<'input>> = {
-  // must have this NL to separate different cmds
-  "NL"  =>  vec![],
-  TypedArgsNoNL,
-};
+BlockRest: Box<Expr<'input>> = {
+  <cmds: (<Command> "NL"*)*> <cmd_last: CommandCallNoNL?> "}" => {
+    let mut cmds_unboxed: Vec<Expr<'input>> = cmds.into_iter().map(|x| *x).collect();
+    if let Some(cmd_last) = cmd_last {
+      cmds_unboxed.push(*cmd_last);
+    }
+    Box::new(Expr::Block(cmds_unboxed))
+  },
+}
 
 Expression = OpTier<"or", Expr2>;
 Expr2 = OpTier<"and", Expr3>;
-OpRel = {
-  "==", "!=", "<=", ">=", "<", ">"
-}
+OpRel = { "==", "!=", "<=", ">=", "<", ">", }
 Expr3 = OpTier<OpRel, Expr4>;
 Expr4 = OpTier<"^", Expr5>;
 Expr5 = OpTier<"&", Expr6>;
-OpShift = {
-  "<<", ">>",
-}
+OpShift = { "<<", ">>", }
 Expr6 = OpTier<OpShift, Expr7>;
 Expr7 = OpTier<"++", Expr8>;
-OpAdd = {
-  "+", "-",
-}
+OpAdd = { "+", "-", }
 Expr8 = OpTier<OpAdd, Expr9>;
-OpMul = {
-  "*", "/", "%",
-}
+OpMul = { "*", "/", "%", }
 Expr9 = OpTier<OpMul, ExprSimple>;
 
 ExprSimple: Box<Expr<'input>> = {
@@ -245,7 +191,7 @@ ExprSimple: Box<Expr<'input>> = {
 }
 
 LiteralNoUnit: Value<'input> = {
- "literal_string" => Value::VStr(<>)
+ "literal_string" => Value::VStr(<>),
 }
 
 Literal: Value<'input> = {
