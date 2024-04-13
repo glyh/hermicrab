@@ -74,7 +74,7 @@ pub enum Token<'input> {
     RegexLike(&'input str),
 
     // `=` is forbidden because we want assignments
-    #[regex(r"[^= \r\n\t\f]+", priority = 1)]
+    #[regex(r"[^= \r\n\t\f()]+", priority = 1)]
     Word(&'input str),
 
     #[token("){")]
@@ -201,12 +201,119 @@ mod tests {
         let parser = ProgramParser::new();
         Some(parser.parse(lexer).unwrap())
     }
+    fn assert_parse(input: &str, parsed: &str) {
+        assert_eq!(format!("{:?}", try_parse(input).unwrap()), parsed);
+    }
 
     #[test]
-    fn parse_simple() {
-        assert_eq!(
-            try_parse("ls\n\n").unwrap(),
-            vec![Expr::Command("ls", vec![], vec![])]
+    fn parse_cmd_simple() {
+        assert_parse("ls\n\n", r#"[Command("ls", [], [])]"#);
+        assert_parse(
+            "cd ..\npwd\n",
+            r#"[Command("cd", [".."], []), Command("pwd", [], [])]"#,
+        );
+    }
+
+    #[test]
+    fn parse_single_line_comment() {
+        assert_parse(
+            "echo 1 #hello I'm here
+            echo 2 #wow\n",
+            "[Command(\"echo\", [\"1\"], []), Command(\"echo\", [\"2\"], [])]",
+        );
+    }
+
+    // TODO: make it nestable, need to rewrite the lexer.
+    #[test]
+    fn parse_multi_line_comment() {
+        assert_parse(
+            " #| hello I'm here with multiline comments |#
+
+            echo 2 #wow\n",
+            "[Command(\"echo\", [\"2\"], [])]",
+        );
+    }
+
+    #[test]
+    fn parse_exp_simple() {
+        assert_parse("(1)\n", "[Val(VInt(1))]");
+        assert_parse("(((((((())))))))\n", "[Val(VUnit)]");
+        assert_parse(
+            "('This ACTUALLY works!')\n",
+            "[Val(VStr(\"This ACTUALLY works\"))]",
         );
     }
 }
+
+//   let%expect_test "exp-string" =
+//     parse_string "('This ACTUALLY works!')"
+//     |> Printf.printf !"%{sexp:Ast.program}";
+//     [%expect{|  ((Val (String "This ACTUALLY works!")))  |}]
+//
+//   let%expect_test "exp-simple" =
+//     parse_string "(1 + 1)"
+//     |> Printf.printf !"%{sexp:Ast.program}";
+//     [%expect{|
+//       ((BinOp Add (Val (Int 1)) (Val (Int 1))))
+//     |}]
+//
+//   let%expect_test "exp-complex" =
+//     parse_string "(1 + 1 * 3 shl 3 | 9 xor 100 and '1' ++ '2' == '12')"
+//     |> Printf.printf !"%{sexp:Ast.program}";
+//     [%expect{|
+//       ((BinOp Land
+//         (BinOp BOr
+//          (BinOp BShiftL
+//           (BinOp Add (Val (Int 1)) (BinOp Mul (Val (Int 1)) (Val (Int 3))))
+//           (Val (Int 3)))
+//          (BinOp BXor (Val (Int 9)) (Val (Int 100))))
+//         (BinOp Eq (BinOp Concat (Val (String 1)) (Val (String 2)))
+//          (Val (String 12)))))
+//     |}]
+//
+//   let%expect_test "simple cmd" =
+//     parse_string "test -d my.zip && 7z x my.zip || echo no zip file"
+//     |> Printf.printf !"%{sexp:Ast.program}";
+//     [%expect{|
+//         ((If
+//           (If (Command test ((Word -d) (Word my.zip)) ())
+//            (Command 7z ((Word x) (Word my.zip)) ()) (Val (Int 1)))
+//           (Val (Unit ())) (Command echo ((Word no) (Word zip) (Word file)) ())))
+//     |}]
+//
+//   let%expect_test "different word types" =
+//     parse_string "ls 1 2 3 'some string' -999 -la"
+//     |> Printf.printf !"%{sexp:Ast.program}";
+//     [%expect{|
+//         ((Command ls
+//           ((Int 1) (Int 2) (Int 3) (String "some string") (Int -999) (Word -la)) ()))
+//     |}]
+//
+//
+//   let%expect_test "weird cmds" =
+//     parse_string "ls && 7z && mkfs.ntfs && x86_64-pc-linux-gnu-c++-11"
+//     |> Printf.printf !"%{sexp:Ast.program}";
+//     [%expect{|
+//         ((If
+//           (If (If (Command ls () ()) (Command 7z () ()) (Val (Int 1)))
+//            (Command mkfs.ntfs () ()) (Val (Int 1)))
+//           (Command x86_64-pc-linux-gnu-c++-11 () ()) (Val (Int 1))))
+//     |}]
+//
+//   let%expect_test "if" =
+//     parse_string "if (1 + 1 == 2) { echo yes } else { echo world ends. }"
+//     |> Printf.printf !"%{sexp:Ast.program}";
+//     [%expect{|
+//       ((If (BinOp Eq (BinOp Add (Val (Int 1)) (Val (Int 1))) (Val (Int 2)))
+//         (Block ((Command echo ((Word yes)) ())))
+//         (Block ((Command echo ((Word world) (Word ends.)) ())))))
+//     |}]
+//
+//   let%expect_test "assign" =
+//     parse_string "a = 1 + 1"
+//     |> Printf.printf !"%{sexp:Ast.program}";
+//     [%expect{|
+//       ((Assign a (BinOp Add (Val (Int 1)) (Val (Int 1)))))
+//     |}]
+//
+// end)

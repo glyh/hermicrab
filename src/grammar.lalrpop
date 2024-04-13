@@ -3,6 +3,7 @@
 
 use crate::parser::{LexicalError, Token};
 use crate::ast::{Expr, Value, EXPR_PASS, BINOP_MAP};
+use crate::parser_helper::{unescape_lit};
 
 grammar<'input>;
 
@@ -189,7 +190,7 @@ ExprSimple: Box<Expr<'input>> = {
 
 LiteralNoUnit: Value<'input> = {
   // TODO: parse a literal string
- "literal_string" => Value::VStr(<>.to_owned()),
+ "literal_string" => Value::VStr(unescape_lit(<>)),
   <mut head: "multiline_string_part"> <rest: "multiline_string_part"*> => {
     // strips out the `\\\` in the front
     let mut out = head[3..].to_owned();
