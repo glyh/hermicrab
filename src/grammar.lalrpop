@@ -88,6 +88,5 @@ BlockRest: Box<Expr<'input>> = {
 }
 
 Expression: Box<Expr<'input>> = {
-  "(" <Expression> ")",
   "()" => Box::new(Expr::Val(Value::VUnit)),
 }
