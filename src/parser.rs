@@ -74,7 +74,7 @@ pub enum Token<'input> {
     RegexLike(&'input str),
 
     // `=` is forbidden because we want assignments
-    #[regex(r"[^= \t\f]+", priority = 0)]
+    #[regex(r"[^= \r\n\t\f]+", priority = 1)]
     Word(&'input str),
 
     #[token("){")]
@@ -194,16 +194,19 @@ impl<'input> Iterator for WrappedLexer<'input> {
 
 #[cfg(test)]
 mod tests {
-    use crate::{grammar::ProgramParser, parser::WrappedLexer};
+    use crate::{ast::Expr, grammar::ProgramParser, parser::WrappedLexer};
+
+    fn try_parse(input: &str) -> Option<Vec<Expr>> {
+        let lexer = WrappedLexer::new(input);
+        let parser = ProgramParser::new();
+        Some(parser.parse(lexer).unwrap())
+    }
 
     #[test]
-    fn test_parse() {
-        let source_code = std::fs::read_to_string("myscript.toy").unwrap();
-        let lexer = WrappedLexer::new(&source_code[..]);
-        let parser = ProgramParser::new();
-        let ast = parser.parse(lexer).unwrap();
-        println!("{}", ast);
-
-        assert_eq!("{:?}", "wow");
+    fn parse_simple() {
+        assert_eq!(
+            try_parse("ls\n\n").unwrap(),
+            vec![Expr::Command("ls", vec![], vec![])]
+        );
     }
 }

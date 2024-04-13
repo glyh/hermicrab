@@ -11,7 +11,7 @@ lazy_static! {
     };
 }
 
-#[derive(Debug)]
+#[derive(Debug, Eq, PartialEq)]
 struct Placeholder(());
 
 use Placeholder as Redirector;
@@ -19,7 +19,7 @@ use Placeholder as Unop;
 
 use crate::parser::Token;
 
-#[derive(Debug)]
+#[derive(Debug, Eq, PartialEq)]
 pub enum Value<'input> {
     VUnit,
     VInt(i64),
@@ -27,14 +27,14 @@ pub enum Value<'input> {
     ProcLam(Vec<&'input str>, Box<Expr<'input>>),
 }
 
-#[derive(Debug)]
+#[derive(Debug, Eq, PartialEq)]
 pub enum BinOp {
     Pipe,
     AndThen,
     OrElse,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Eq, PartialEq)]
 pub enum Expr<'input> {
     Ident(&'input str),
     Val(Value<'input>),
