@@ -124,6 +124,7 @@ OpTier<Op, NextTier>: Box<Expr<'input>> = {
 ExpSingle = {
  <CommandExpLikeNL> "NL",
  <CommandExpLikeNoNL>,
+ "=" <Expression>,
  // TODO: use pattern for lhs
  <lhs: "word"> "=" <rhs: Expression> => {
    Box::new(Expr::Binary(Box::new(Expr::Ident(lhs)), &BinOp::Assign, rhs))

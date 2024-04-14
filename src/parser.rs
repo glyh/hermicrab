@@ -302,4 +302,9 @@ mod tests {
             "[Binary(Ident(\"a\"), Assign, Binary(Val(VInt(1)), Plus, Val(VInt(1))))]",
         );
     }
+
+    #[test]
+    fn parse_exp() {
+        assert_parse("= 1 + 1\n", "[Binary(Val(VInt(1)), Plus, Val(VInt(1)))]");
+    }
 }
