@@ -78,7 +78,7 @@ pub enum Expr<'input> {
     Ident(&'input str),
     Val(Value<'input>),
     Unary(Unop, Box<Expr<'input>>),
-    Assign(&'input str, Box<Expr<'input>>),
+    Assign(Box<Expr<'input>>, Box<Expr<'input>>),
     If(Box<Expr<'input>>, Box<Expr<'input>>, Box<Expr<'input>>),
     For(&'input str, Box<Expr<'input>>, Box<Expr<'input>>),
     Block(Vec<Expr<'input>>),

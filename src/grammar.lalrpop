@@ -39,7 +39,7 @@ extern {
     "in" => Token::IN,
     "&&" => Token::ANDTHEN,
     "||" => Token::ORELSE,
-    "assign" => Token::ASSIGN,
+    "=" => Token::ASSIGN,
     "|" => Token::PIPE,
     "," => Token::COMMA,
     "semicolon" => Token::SEMICOLON,
@@ -118,6 +118,9 @@ ExpSingle = {
   // TODO: add assignment
  <CommandExpLikeNL> "NL",
  <CommandExpLikeNoNL>,
+ <lhs: "word"> "=" <rhs: Expression> => {
+   Box::new(Expr::Assign(Box::new(Expr::Ident(lhs)), rhs))
+ }
 }
 
 
