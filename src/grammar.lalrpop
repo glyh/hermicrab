@@ -116,18 +116,27 @@ OpTier<Op, NextTier>: Box<Expr<'input>> = {
 
 ExpSingle = {
   // TODO: add assignment
- < CommandExpLike> "NL",
+ <CommandExpLikeNL> "NL",
+ <CommandExpLikeNoNL>,
 }
 
-CommandExpLike = OpTier<"||", CommandExpLike1>;
-CommandExpLike1 = OpTier<"&&", CommandExpLike2>;
-CommandExpLike2 = OpTier<"|", CommandExpLike3>;
 
-CommandExpLike3: Box<Expr<'input>> = {
+CommandExpLikeNL = OpTier<"||", CommandExpLikeNL1>;
+CommandExpLikeNL1 = OpTier<"&&", CommandExpLikeNL2>;
+CommandExpLikeNL2 = OpTier<"|", CommandExpLikeNL3>;
+
+CommandExpLikeNL3: Box<Expr<'input>> = {
   <CommandCallNoNL>,
+};
+
+CommandExpLikeNoNL = OpTier<"||", CommandExpLikeNoNL1>;
+CommandExpLikeNoNL1 = OpTier<"&&", CommandExpLikeNoNL2>;
+CommandExpLikeNoNL2 = OpTier<"|", CommandExpLikeNoNL3>;
+
+CommandExpLikeNoNL3: Box<Expr<'input>> = {
   "(" "NL"* <Expression> "NL"* ")",
   "{" "NL"* <BlockRest>,
-};
+}
 
 WordArg: Box<Expr<'input>> = {
   "word" => Box::new(Expr::Val(Value::VStrStatic(<>))),

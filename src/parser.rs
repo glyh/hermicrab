@@ -277,7 +277,7 @@ mod tests {
     fn parse_if() {
         assert_parse(
             "if (1 + 1 == 2) { echo yes } else { echo world ends. }",
-            "[Command(\"ls\", [Val(VStrStatic(\"1\")), Val(VStrStatic(\"2\")), Val(VStrStatic(\"3\")), Val(VStr(\"some string\")), Val(VStrStatic(\"-999\")), Val(VStrStatic(\"-la\"))], [])]",
+            "[If(Binary(Binary(Val(VInt(1)), Plus, Val(VInt(1))), Eq, Val(VInt(2))), Block([Command(\"echo\", [Val(VStrStatic(\"yes\"))], [])]), Block([Command(\"echo\", [Val(VStrStatic(\"world\")), Val(VStrStatic(\"ends.\"))], [])]))]",
         );
     }
 
