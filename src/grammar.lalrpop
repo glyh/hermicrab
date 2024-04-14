@@ -2,7 +2,7 @@
 // NOTE: please feed an NL to input so commands can be parsed correctly
 
 use crate::parser::{LexicalError, Token};
-use crate::ast::{Expr, Value, EXPR_PASS, BINOP_MAP};
+use crate::ast::{Expr, Value, EXPR_PASS, BINOP_MAP, BinOp};
 use crate::parser_helper::{unescape_lit};
 
 grammar<'input>;
@@ -118,9 +118,10 @@ ExpSingle = {
   // TODO: add assignment
  <CommandExpLikeNL> "NL",
  <CommandExpLikeNoNL>,
+ // TODO: use pattern for lhs
  <lhs: "word"> "=" <rhs: Expression> => {
-   Box::new(Expr::Assign(Box::new(Expr::Ident(lhs)), rhs))
- }
+   Box::new(Expr::Binary(Box::new(Expr::Ident(lhs)), &BinOp::Assign, rhs))
+ },
 }
 
 

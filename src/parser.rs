@@ -285,7 +285,7 @@ mod tests {
     fn parse_assign() {
         assert_parse(
             "a = 1 + 1\n",
-            "[Assign(Ident(\"a\"), Binary(Val(VInt(1)), Plus, Val(VInt(1))))]",
+            "[Binary(Ident(\"a\"), Assign, Binary(Val(VInt(1)), Plus, Val(VInt(1))))]",
         );
     }
 }
