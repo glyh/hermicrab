@@ -12,3 +12,7 @@ Takes place of the shell!
 - [ ] Good ecosystem integration
   - [ ] Package Manager
   - [ ] POSIX Detector
+
+### TODO
+- [x] Have a working frontend 
+- [ ] Add GC to interpreter

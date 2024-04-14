@@ -9,6 +9,7 @@ lazy_static! {
         m.insert(Token::ORELSE, BinOp::OrElse);
 
         m.insert(Token::ASSIGN, BinOp::Assign);
+        m.insert(Token::DECLARE, BinOp::Declare);
         m.insert(Token::PLUS, BinOp::Plus);
         m.insert(Token::MINUS, BinOp::Minus);
         m.insert(Token::MULT, BinOp::Mult);
@@ -45,13 +46,13 @@ use Placeholder as Redirector;
 
 use crate::parser::Token;
 
-#[derive(Debug, Eq, PartialEq)]
+#[derive(Debug, Eq, PartialEq, Clone)]
 pub enum Value<'input> {
     VUnit,
     VInt(i64),
     VStr(String),
     VStrStatic(&'input str),
-    ProcLam(Vec<&'input str>, Box<Expr<'input>>),
+    ProcLam(Vec<&'input str>, &'input Box<Expr<'input>>),
 }
 
 #[derive(Debug, Eq, PartialEq)]
@@ -60,6 +61,7 @@ pub enum BinOp {
     AndThen,
     OrElse,
     Assign,
+    Declare,
     Plus,
     Minus,
     Mult,
@@ -94,7 +96,7 @@ pub enum Expr<'input> {
     For(&'input str, Box<Expr<'input>>, Box<Expr<'input>>),
     Block(Vec<Expr<'input>>),
     Binary(Box<Expr<'input>>, &'input BinOp, Box<Expr<'input>>),
-    Command(&'input str, Vec<Expr<'input>>, Vec<Expr<'input>>),
+    Command(&'input str, Vec<String>, Vec<Expr<'input>>),
     WithRedirection(Box<Expr<'input>>, Redirector),
 }
 

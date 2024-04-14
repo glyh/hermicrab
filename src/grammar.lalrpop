@@ -40,6 +40,7 @@ extern {
     "&&" => Token::ANDTHEN,
     "||" => Token::ORELSE,
     "=" => Token::ASSIGN,
+    ":=" => Token::DECLARE,
     "|" => Token::PIPE,
     "," => Token::COMMA,
     "semicolon" => Token::SEMICOLON,
@@ -129,6 +130,9 @@ ExpSingle = {
  <lhs: "word"> "=" <rhs: Expression> => {
    Box::new(Expr::Binary(Box::new(Expr::Ident(lhs)), &BinOp::Assign, rhs))
  },
+ <lhs: "word"> ":=" <rhs: Expression> => {
+   Box::new(Expr::Binary(Box::new(Expr::Ident(lhs)), &BinOp::Declare, rhs))
+ },
 }
 
 
@@ -149,10 +153,10 @@ CommandExpLikeNoNL3: Box<Expr<'input>> = {
   "do" <Block>,
 }
 
-WordArg: Box<Expr<'input>> = {
-  "word" => Box::new(Expr::Val(Value::VStrStatic(<>))),
-  "decimal_lit" => Box::new(Expr::Val(Value::VStrStatic(<>))),
-  "literal_string" => Box::new(Expr::Val(Value::VStr(unescape_lit(<>)))),
+WordArg: String = {
+  "word" => <>.to_owned(),
+  "decimal_lit" => <>.to_owned(),
+  "literal_string" => unescape_lit(<>),
 };
 
 CommandCallNoNL: Box<Expr<'input>> = {
@@ -162,7 +166,7 @@ CommandCallNoNL: Box<Expr<'input>> = {
         Some(targets) => targets,
         None => vec![],
       };
-    Box::new(Expr::Command(name, args.into_iter().map(|x| *x).collect(), targets))
+    Box::new(Expr::Command(name, args, targets))
   },
 }
 

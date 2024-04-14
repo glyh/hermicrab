@@ -9,6 +9,7 @@ edition = "2021"
 logos = "0.14.0"
 lalrpop-util = { version = "0.20.2", features = ["lexer", "unicode"] }
 lazy_static = "1.4.0"
+nix = { version = "0.28.0", features = ["process"] }
 
 [build-dependencies] # <-- We added this and everything after!
 lalrpop = "0.20.2"

@@ -108,6 +108,8 @@ pub enum Token<'input> {
     ORELSE,
     #[token("=")]
     ASSIGN,
+    #[token(":=")]
+    DECLARE,
     #[token("|")]
     PIPE,
     #[token(",")]
@@ -241,6 +243,7 @@ mod tests {
 
     #[test]
     fn parse_exp_simple() {
+        assert_parse("= 1 + 1\n", "[Binary(Val(VInt(1)), Plus, Val(VInt(1)))]");
         assert_parse("(1)\n", "[Val(VInt(1))]");
         assert_parse("(((((((())))))))\n", "[Val(VUnit)]");
         assert_parse(
@@ -301,10 +304,5 @@ mod tests {
             "a = 1 + 1\n",
             "[Binary(Ident(\"a\"), Assign, Binary(Val(VInt(1)), Plus, Val(VInt(1))))]",
         );
-    }
-
-    #[test]
-    fn parse_exp() {
-        assert_parse("= 1 + 1\n", "[Binary(Val(VInt(1)), Plus, Val(VInt(1)))]");
     }
 }
