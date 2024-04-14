@@ -82,7 +82,6 @@ pub enum Expr<'input> {
     If(Box<Expr<'input>>, Box<Expr<'input>>, Box<Expr<'input>>),
     For(&'input str, Box<Expr<'input>>, Box<Expr<'input>>),
     Block(Vec<Expr<'input>>),
-    // Pipe(Box<Expr>, Box<Expr>),
     Binary(Box<Expr<'input>>, &'input BinOp, Box<Expr<'input>>),
     Command(&'input str, Vec<Expr<'input>>, Vec<Expr<'input>>),
     WithRedirection(Box<Expr<'input>>, Redirector),
