@@ -7,6 +7,26 @@ lazy_static! {
         m.insert(Token::PIPE, BinOp::Pipe);
         m.insert(Token::ANDTHEN, BinOp::AndThen);
         m.insert(Token::ORELSE, BinOp::OrElse);
+
+        m.insert(Token::ASSIGN, BinOp::Assign);
+        m.insert(Token::PLUS, BinOp::Plus);
+        m.insert(Token::MINUS, BinOp::Minus);
+        m.insert(Token::MULT, BinOp::Mult);
+        m.insert(Token::DIV, BinOp::Div);
+        m.insert(Token::REM, BinOp::Rem);
+        m.insert(Token::EQ, BinOp::Eq);
+        m.insert(Token::NEQ, BinOp::Neq);
+        m.insert(Token::LEQ, BinOp::Leq);
+        m.insert(Token::GEQ, BinOp::Geq);
+        m.insert(Token::LT, BinOp::Lt);
+        m.insert(Token::GT, BinOp::Gt);
+        m.insert(Token::AND, BinOp::And);
+        m.insert(Token::BSHIFTL, BinOp::Bshiftl);
+        m.insert(Token::BSHIFTR, BinOp::Bshiftr);
+        m.insert(Token::BXOR, BinOp::Bxor);
+        m.insert(Token::BAND, BinOp::Band);
+        m.insert(Token::CONCAT, BinOp::Concat);
+
         m
     };
 }
@@ -24,6 +44,7 @@ pub enum Value<'input> {
     VUnit,
     VInt(i64),
     VStr(String),
+    VStrStatic(&'input str),
     ProcLam(Vec<&'input str>, Box<Expr<'input>>),
 }
 
@@ -32,6 +53,24 @@ pub enum BinOp {
     Pipe,
     AndThen,
     OrElse,
+    Assign,
+    Plus,
+    Minus,
+    Mult,
+    Div,
+    Rem,
+    Eq,
+    Neq,
+    Leq,
+    Geq,
+    Lt,
+    Gt,
+    And,
+    Bshiftl,
+    Bshiftr,
+    Bxor,
+    Band,
+    Concat,
 }
 
 #[derive(Debug, Eq, PartialEq)]
@@ -45,7 +84,7 @@ pub enum Expr<'input> {
     Block(Vec<Expr<'input>>),
     // Pipe(Box<Expr>, Box<Expr>),
     Binary(Box<Expr<'input>>, &'input BinOp, Box<Expr<'input>>),
-    Command(&'input str, Vec<&'input str>, Vec<Expr<'input>>),
+    Command(&'input str, Vec<Expr<'input>>, Vec<Expr<'input>>),
     WithRedirection(Box<Expr<'input>>, Redirector),
 }
 

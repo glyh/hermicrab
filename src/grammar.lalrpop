@@ -98,7 +98,7 @@ CommandIfOpen: Box<Expr<'input>> = {
 }
 
 CommandIfClose: Box<Expr<'input>> = {
-  CommandExpLike,
+  ExpSingle,
   "if" "NL"* <test: Command> "NL"* <then_clause: CommandIfClose> "NL"* "else" "NL"* <else_clause: CommandIfClose> => {
     Box::new(Expr::If(test, then_clause, else_clause))
   },
@@ -114,20 +114,26 @@ OpTier<Op, NextTier>: Box<Expr<'input>> = {
     NextTier,
 };
 
+ExpSingle = {
+  // TODO: add assignment
+ < CommandExpLike> "NL",
+}
+
 CommandExpLike = OpTier<"||", CommandExpLike1>;
 CommandExpLike1 = OpTier<"&&", CommandExpLike2>;
 CommandExpLike2 = OpTier<"|", CommandExpLike3>;
 
 CommandExpLike3: Box<Expr<'input>> = {
-  <CommandCallNoNL> "NL",
+  <CommandCallNoNL>,
   "(" "NL"* <Expression> "NL"* ")",
   "{" "NL"* <BlockRest>,
 };
 
-WordArg: &'input str = {
-  "word",
-  "decimal_lit",
-  "literal_string", 
+WordArg: Box<Expr<'input>> = {
+  "word" => Box::new(Expr::Val(Value::VStrStatic(<>))),
+  "decimal_lit" => Box::new(Expr::Val(Value::VStrStatic(<>))),
+  // TODO: make word arg possiblely be owned
+  "literal_string" => Box::new(Expr::Val(Value::VStr(unescape_lit(<>)))),
 };
 
 CommandCallNoNL: Box<Expr<'input>> = {
@@ -137,7 +143,7 @@ CommandCallNoNL: Box<Expr<'input>> = {
         Some(targets) => targets,
         None => vec![],
       };
-    Box::new(Expr::Command(name, args, targets))
+    Box::new(Expr::Command(name, args.into_iter().map(|x| *x).collect(), targets))
   },
 }
 
@@ -160,18 +166,18 @@ TypedArgsNoNL: Vec<Expr<'input>> = {
 
 BlockRest: Box<Expr<'input>> = {
   <cmds: (<Command> "NL"*)*> <cmd_last: CommandCallNoNL?> "}" => {
-    let mut cmds_unboxed: Vec<Expr<'input>> = cmds.into_iter().map(|x| *x).collect();
-    if let Some(cmd_last) = cmd_last {
+    let mut cmds_unboxed: Vec<Expr<'input>> = cmds.into_iter().map(|x| *x).collect(); if let Some(cmd_last) = cmd_last {
       cmds_unboxed.push(*cmd_last);
     }
     Box::new(Expr::Block(cmds_unboxed))
   },
 }
 
-Expression = OpTier<"or", Expr2>;
-Expr2 = OpTier<"and", Expr3>;
+Expression = OpTier<"or", Expr1>;
+Expr1 = OpTier<"and", Expr2>;
 OpRel = { "==", "!=", "<=", ">=", "<", ">", }
-Expr3 = OpTier<OpRel, Expr4>;
+Expr2 = OpTier<OpRel, Expr3>;
+Expr3 = OpTier<"|", Expr4>;
 Expr4 = OpTier<"^", Expr5>;
 Expr5 = OpTier<"&", Expr6>;
 OpShift = { "<<", ">>", }
@@ -184,8 +190,7 @@ Expr9 = OpTier<OpMul, ExprSimple>;
 
 ExprSimple: Box<Expr<'input>> = {
   "(" <Expression> ")",
-  "()" => Box::new(Expr::Val(Value::VUnit)),
-  LiteralNoUnit => Box::new(Expr::Val(<>)),
+  Literal => Box::new(Expr::Val(<>)),
 }
 
 LiteralNoUnit: Value<'input> = {
