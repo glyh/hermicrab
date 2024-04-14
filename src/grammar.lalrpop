@@ -117,7 +117,6 @@ OpTier<Op, NextTier>: Box<Expr<'input>> = {
 };
 
 ExpSingle = {
-  // TODO: add assignment
  <CommandExpLikeNL> "NL",
  <CommandExpLikeNoNL>,
  // TODO: use pattern for lhs
@@ -147,7 +146,6 @@ CommandExpLikeNoNL3: Box<Expr<'input>> = {
 WordArg: Box<Expr<'input>> = {
   "word" => Box::new(Expr::Val(Value::VStrStatic(<>))),
   "decimal_lit" => Box::new(Expr::Val(Value::VStrStatic(<>))),
-  // TODO: make word arg possiblely be owned
   "literal_string" => Box::new(Expr::Val(Value::VStr(unescape_lit(<>)))),
 };
 
@@ -218,7 +216,6 @@ ExprUnary: Box<Expr<'input>> = {
 }
 
 LiteralNoUnit: Value<'input> = {
-  // TODO: parse a literal string
  "literal_string" => Value::VStr(unescape_lit(<>)),
   <mut head: "multiline_string_part"> <rest: "multiline_string_part"*> => {
     // strips out the `\\\` in the front
