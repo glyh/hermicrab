@@ -21,6 +21,7 @@ lazy_static! {
         m.insert(Token::LT, BinOp::Lt);
         m.insert(Token::GT, BinOp::Gt);
         m.insert(Token::AND, BinOp::And);
+        m.insert(Token::OR, BinOp::Or);
         m.insert(Token::BSHIFTL, BinOp::Bshiftl);
         m.insert(Token::BSHIFTR, BinOp::Bshiftr);
         m.insert(Token::BXOR, BinOp::Bxor);
@@ -71,6 +72,7 @@ pub enum BinOp {
     Lt,
     Gt,
     And,
+    Or,
     Bshiftl,
     Bshiftr,
     Bxor,

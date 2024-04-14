@@ -190,6 +190,8 @@ impl<'input> Iterator for WrappedLexer<'input> {
 
 #[cfg(test)]
 mod tests {
+    use std::io::{self, Write};
+
     use crate::{ast::Expr, grammar::ProgramParser, parser::WrappedLexer};
 
     fn try_parse(input: &str) -> Option<Vec<Expr>> {
@@ -202,12 +204,18 @@ mod tests {
     }
 
     fn try_parse_verbose(input: &str) -> Option<Vec<Expr>> {
-        let lexer = WrappedLexer::new(input);
+        let mut lexer = WrappedLexer::new(input);
         let parser = ProgramParser::new();
-        let lexer2 = WrappedLexer::new(input);
-        for tok in lexer2 {
-            println!("{:?}", tok);
+
+        for tok in lexer {
+            print!("[{:?}] ", tok);
         }
+        print!("\n");
+
+        lexer = WrappedLexer::new(input);
+        print!("{:?}", parser.parse(lexer));
+        let _ = io::stdout().flush();
+        lexer = WrappedLexer::new(input);
         Some(parser.parse(lexer).unwrap())
     }
     fn assert_parse_verbose(input: &str, parsed: &str) {
@@ -247,9 +255,16 @@ mod tests {
     }
 
     #[test]
+    fn parse_unary() {
+        assert_parse_verbose(
+            "(3 and 1 or not 1)\n",
+            "[Binary(Binary(Val(VInt(3)), And, Val(VInt(1))), Or, Unary(Not, Val(VInt(1))))]",
+        );
+    }
+    #[test]
     fn parse_exp_complex() {
         assert_parse(
-            "(1 + 1 * 3 << 3 | 9 ^ 100 and '1' ++ '2' == '12' or not 1)\n",
+            "(1 + 1 * 3 << 3 | 9 ^ 100 and '1' ++ '2' == '12')\n",
             "[Binary(Binary(Binary(Binary(Val(VInt(1)), Plus, Binary(Val(VInt(1)), Mult, Val(VInt(3)))), Bshiftl, Val(VInt(3))), Pipe, Binary(Val(VInt(9)), Bxor, Val(VInt(100)))), And, Binary(Binary(Val(VStr(\"1\")), Concat, Val(VStr(\"2\"))), Eq, Val(VStr(\"12\"))))]",
         );
     }
