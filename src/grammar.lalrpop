@@ -86,6 +86,7 @@ Command: Box<Expr<'input>> = {
   CommandIfClose,
 } 
 
+// NOTE: For n dangling constructs I have to have 2^n rules!
 CommandIfOpen: Box<Expr<'input>> = {
   "if" "NL"* <test: Command> "NL"* <then_clause: CommandIfOpen> => {
     Box::new(Expr::If(test, then_clause, Box::new(EXPR_PASS)))
