@@ -2,7 +2,7 @@
 // NOTE: please feed an NL to input so commands can be parsed correctly
 
 use crate::parser::{LexicalError, Token};
-use crate::ast::{Expr, Value, EXPR_PASS, BINOP_MAP, BinOp};
+use crate::ast::{Expr, Value, EXPR_PASS, BINOP_MAP, BinOp, UNOP_MAP};
 use crate::parser_helper::{unescape_lit};
 
 grammar<'input>;
@@ -57,6 +57,7 @@ extern {
     ">" => Token::GT,
     "and" => Token::AND,
     "or" => Token::OR,
+    "not" => Token::NOT,
     "<<" => Token::BSHIFTL,
     ">>" => Token::BSHIFTR,
     "^" => Token::BXOR,
@@ -203,6 +204,15 @@ Expr9 = OpTier<OpMul, ExprSimple>;
 
 ExprSimple: Box<Expr<'input>> = {
   "(" <Expression> ")",
+  <ExprUnary>
+}
+
+UnOp = { "not" };
+
+ExprUnary: Box<Expr<'input>> = {
+  <uop: UnOp> <inner: ExprUnary> => {
+    Box::new(Expr::Unary(UNOP_MAP.get(&uop).unwrap(), inner))
+  },
   Literal => Box::new(Expr::Val(<>)),
 }
 

@@ -142,6 +142,8 @@ pub enum Token<'input> {
     AND,
     #[token("or")]
     OR,
+    #[token("not")]
+    NOT,
     #[token("<<")]
     BSHIFTL,
     #[token(">>")]
@@ -247,7 +249,7 @@ mod tests {
     #[test]
     fn parse_exp_complex() {
         assert_parse(
-            "(1 + 1 * 3 << 3 | 9 ^ 100 and '1' ++ '2' == '12')\n",
+            "(1 + 1 * 3 << 3 | 9 ^ 100 and '1' ++ '2' == '12' or not 1)\n",
             "[Binary(Binary(Binary(Binary(Val(VInt(1)), Plus, Binary(Val(VInt(1)), Mult, Val(VInt(3)))), Bshiftl, Val(VInt(3))), Pipe, Binary(Val(VInt(9)), Bxor, Val(VInt(100)))), And, Binary(Binary(Val(VStr(\"1\")), Concat, Val(VStr(\"2\"))), Eq, Val(VStr(\"12\"))))]",
         );
     }

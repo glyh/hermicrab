@@ -29,13 +29,18 @@ lazy_static! {
 
         m
     };
+    pub static ref UNOP_MAP: HashMap<Token<'static>, UnOp> = {
+        let mut m = HashMap::new();
+        m.insert(Token::NOT, UnOp::Not);
+
+        m
+    };
 }
 
 #[derive(Debug, Eq, PartialEq)]
 struct Placeholder(());
 
 use Placeholder as Redirector;
-use Placeholder as Unop;
 
 use crate::parser::Token;
 
@@ -74,10 +79,15 @@ pub enum BinOp {
 }
 
 #[derive(Debug, Eq, PartialEq)]
+pub enum UnOp {
+    Not,
+}
+
+#[derive(Debug, Eq, PartialEq)]
 pub enum Expr<'input> {
     Ident(&'input str),
     Val(Value<'input>),
-    Unary(Unop, Box<Expr<'input>>),
+    Unary(&'input UnOp, Box<Expr<'input>>),
     If(Box<Expr<'input>>, Box<Expr<'input>>, Box<Expr<'input>>),
     For(&'input str, Box<Expr<'input>>, Box<Expr<'input>>),
     Block(Vec<Expr<'input>>),
