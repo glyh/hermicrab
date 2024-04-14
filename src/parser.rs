@@ -77,8 +77,6 @@ pub enum Token<'input> {
     #[regex(r"[^= \r\n\t\f()]+", priority = 1)]
     Word(&'input str),
 
-    #[token("){")]
-    RPARENLBRACE,
     #[token("()")]
     UNIT,
     #[token("(")]
@@ -100,6 +98,8 @@ pub enum Token<'input> {
     ELSE,
     #[token("for")]
     FOR,
+    #[token("do")]
+    DO,
     #[token("in")]
     IN,
     #[token("&&")]
@@ -190,8 +190,6 @@ impl<'input> Iterator for WrappedLexer<'input> {
 
 #[cfg(test)]
 mod tests {
-    use std::io::{self, Write};
-
     use crate::{ast::Expr, grammar::ProgramParser, parser::WrappedLexer};
 
     fn try_parse(input: &str) -> Option<Vec<Expr>> {
@@ -214,7 +212,6 @@ mod tests {
 
         lexer = WrappedLexer::new(input);
         print!("{:?}", parser.parse(lexer));
-        let _ = io::stdout().flush();
         lexer = WrappedLexer::new(input);
         Some(parser.parse(lexer).unwrap())
     }
@@ -256,7 +253,7 @@ mod tests {
 
     #[test]
     fn parse_unary() {
-        assert_parse_verbose(
+        assert_parse(
             "(3 and 1 or not 1)\n",
             "[Binary(Binary(Val(VInt(3)), And, Val(VInt(1))), Or, Unary(Not, Val(VInt(1))))]",
         );
@@ -292,7 +289,7 @@ mod tests {
 
     #[test]
     fn parse_if() {
-        assert_parse(
+        assert_parse_verbose(
             "if (1 + 1 == 2) { echo yes } else { echo world ends. }",
             "[If(Binary(Binary(Val(VInt(1)), Plus, Val(VInt(1))), Eq, Val(VInt(2))), Block([Command(\"echo\", [Val(VStrStatic(\"yes\"))], [])]), Block([Command(\"echo\", [Val(VStrStatic(\"world\")), Val(VStrStatic(\"ends.\"))], [])]))]",
         );

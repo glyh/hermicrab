@@ -25,7 +25,6 @@ extern {
     "sigil_braced" => Token::SigilBraced(<&'input str>),
     "regex_like" => Token::RegexLike(<&'input str>),
     "word" => Token::Word(<&'input str>),
-    "){" => Token::RPARENLBRACE,
     "()" => Token::UNIT,
     "(" => Token::LPAREN,
     ")" => Token::RPAREN,
@@ -36,6 +35,7 @@ extern {
     "if" => Token::IF,
     "else" => Token::ELSE,
     "for" => Token::FOR,
+    "do" => Token::DO,
     "in" => Token::IN,
     "&&" => Token::ANDTHEN,
     "||" => Token::ORELSE,
@@ -86,12 +86,17 @@ Command: Box<Expr<'input>> = {
   CommandIfClose,
 } 
 
+OrBlk<Rule> = {
+  <Rule>,
+  <Block>
+}
+
 // NOTE: For n dangling constructs I have to have 2^n rules!
 CommandIfOpen: Box<Expr<'input>> = {
   "if" "NL"* <test: Command> "NL"* <then_clause: CommandIfOpen> => {
     Box::new(Expr::If(test, then_clause, Box::new(EXPR_PASS)))
   },
-  "if" "NL"* <test: Command> "NL"* <then_clause: CommandIfClose> "NL"* "else" "NL"* <else_clause: CommandIfOpen> => {
+  "if" "NL"* <test: Command> "NL"* <then_clause: OrBlk<CommandIfClose>> "NL"* "else" "NL"* <else_clause: CommandIfOpen> => {
     Box::new(Expr::If(test, then_clause, else_clause))
   },
   "for" "NL"* <sentinel: "word"> "NL"* "in" "NL"* <collection: Command> "NL"* <body: CommandIfOpen> => {
@@ -101,10 +106,10 @@ CommandIfOpen: Box<Expr<'input>> = {
 
 CommandIfClose: Box<Expr<'input>> = {
   ExpSingle,
-  "if" "NL"* <test: Command> "NL"* <then_clause: CommandIfClose> "NL"* "else" "NL"* <else_clause: CommandIfClose> => {
+  "if" "NL"* <test: Command> "NL"* <then_clause: OrBlk<CommandIfClose>> "NL"* "else" "NL"* <else_clause: OrBlk<CommandIfClose>> => {
     Box::new(Expr::If(test, then_clause, else_clause))
   },
-  "for" "NL"* <sentinel: "word"> "NL"* "in" "NL"* <collection: Command> "NL"* <body: CommandIfClose> => {
+  "for" "NL"* <sentinel: "word"> "NL"* "in" "NL"* <collection: Command> "NL"* <body: OrBlk<CommandIfClose>> => {
     Box::new(Expr::For(sentinel, collection, body))
   },
 }
@@ -140,7 +145,7 @@ CommandExpLikeNoNL2 = OpTier<"|", CommandExpLikeNoNL3>;
 
 CommandExpLikeNoNL3: Box<Expr<'input>> = {
   "(" "NL"* <Expression> "NL"* ")",
-  "{" "NL"* <BlockRest>,
+  "do" <Block>,
 }
 
 WordArg: Box<Expr<'input>> = {
@@ -160,31 +165,23 @@ CommandCallNoNL: Box<Expr<'input>> = {
   },
 }
 
-TypedArgsNoNLM<RSep>: Vec<Expr<'input>> = {
-  "(" "NL"* <mut args: (<Expression> "NL"* "," "NL"*)*> <arg_last: Expression> ("NL"* ",")? "NL"* RSep => {
+TypedArgsNoBlk: Vec<Expr<'input>> = {
+  "(" "NL"* <mut args: (<Expression> "NL"* "," "NL"*)*> <arg_last: Expression> "NL"* ("," "NL"*)? ")" => {
     let mut args_unboxed: Vec<_> = args.into_iter().map(|x| *x).collect();
     args_unboxed.push(*arg_last);
     args_unboxed
   },
-  "(" "NL"* RSep =>  vec![],
+  "(" "NL"* ")" =>  vec![],
 }
 
 TypedArgsNoNL: Vec<Expr<'input>> = {
-  <TypedArgsNoNLM<")">>,
-  <mut args_unboxed: TypedArgsNoNLM<"){">> "NL"* <blk: BlockRest> => {
-    args_unboxed.push(*blk);
+  <mut args_unboxed: TypedArgsNoBlk> <blk: Block?> => {
+    if let Some(blk) = blk {
+      args_unboxed.push(*blk);
+    }
     args_unboxed
   },
 };
-
-BlockRest: Box<Expr<'input>> = {
-  <cmds: (<Command> "NL"*)*> <cmd_last: CommandCallNoNL?> "}" => {
-    let mut cmds_unboxed: Vec<Expr<'input>> = cmds.into_iter().map(|x| *x).collect(); if let Some(cmd_last) = cmd_last {
-      cmds_unboxed.push(*cmd_last);
-    }
-    Box::new(Expr::Block(cmds_unboxed))
-  },
-}
 
 Expression = OpTier<"or", Expr1>;
 Expr1 = OpTier<"and", Expr2>;
@@ -201,8 +198,18 @@ Expr8 = OpTier<OpAdd, Expr9>;
 OpMul = { "*", "/", "%", }
 Expr9 = OpTier<OpMul, ExprSimple>;
 
+Block: Box<Expr<'input>> = {
+  "{" <cmds: (<Command> "NL"*)*> <cmd_last: CommandCallNoNL?> "}" => {
+    let mut cmds_unboxed: Vec<Expr<'input>> = cmds.into_iter().map(|x| *x).collect(); if let Some(cmd_last) = cmd_last {
+      cmds_unboxed.push(*cmd_last);
+    }
+    Box::new(Expr::Block(cmds_unboxed))
+  },
+}
+
 ExprSimple: Box<Expr<'input>> = {
   "(" <Expression> ")",
+  <Block>,
   <ExprUnary>
 }
 
