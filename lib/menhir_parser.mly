@@ -42,8 +42,7 @@
 
 %token IF WHEN ELSE FOR DO IN AND_THEN OR_ELSE
 %token ASSIGN DECLARE
-%token PIPE COMMA COLON
-(*SEMICOLON*)
+%token PIPE COMMA COLON SEMICOLON
 %token PLUS MINUS MULT DIV REM
 %token EQ NE LE GE LT GT
 %token AND OR NOT
@@ -83,6 +82,7 @@ orBlk(Rule):
 
 exp_single:
   | c=command_exp_requires_term NL { c }
+  | c=command_exp_requires_term SEMICOLON { c }
   | c=command_exp_requires_no_term { c }
   | lhs=WORD ASSIGN rhs=expression { Assign(lhs, rhs, false) }
   | lhs=WORD DECLARE rhs=expression { Assign(lhs, rhs, true) }

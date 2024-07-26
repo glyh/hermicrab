@@ -131,4 +131,12 @@ let%test_module _ = (module struct
       (MBlock ((Command echo ((Exp (Binary Add (Val (Int 1)) (Val (Int 1))))) ())))
     |}]
 
+  let%expect_test "semi col as new line" =
+    parse_string "ls; pwd; echo 1"
+    |> Printf.printf !"%{sexp:Ast.expr}";
+    [%expect{|
+      (MBlock
+       ((Command ls () ()) (Command pwd () ()) (Command echo ((Just 1)) ())))
+    |}]
+
 end)

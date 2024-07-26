@@ -105,6 +105,7 @@ rule next_token = parse
   | "band" { BAND }
   | "bor" { BOR }
   | "++" { CONCAT }
+  | ";" { SEMICOLON }
 
   (* lex identifiers last, so keywords are not lexed as identifiers *)
   | word as word { WORD word }
