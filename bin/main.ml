@@ -1,0 +1,2 @@
+open Entry
+let () = main ()

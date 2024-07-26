@@ -1,0 +1,8 @@
+(ocamllex (modules lexer))
+(menhir (modules menhir_parser))
+
+(library
+ (name entry)
+ (libraries nice_parser core fmt)
+ (preprocess (pps ppx_jane))
+ (inline_tests))
