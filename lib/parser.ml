@@ -131,12 +131,42 @@ let%test_module _ = (module struct
       (MBlock ((Command echo ((Exp (Binary Add (Val (Int 1)) (Val (Int 1))))) ())))
     |}]
 
-  let%expect_test "semi col as new line" =
+  let%expect_test "semicol as line delimiter" =
     parse_string "ls; pwd; echo 1"
     |> Printf.printf !"%{sexp:Ast.expr}";
     [%expect{|
       (MBlock
        ((Command ls () ()) (Command pwd () ()) (Command echo ((Just 1)) ())))
+    |}]
+
+  let%expect_test "templated string" =
+    parse_string {|hey (""{1 + 1}"")|}
+    |> Printf.printf !"%{sexp:Ast.expr}";
+    [%expect{|
+      (MBlock
+       ((Command hey ()
+         ((Binary SConcat (Val (Str ""))
+           (Binary SConcat
+            (Command stringify () ((Binary Add (Val (Int 1)) (Val (Int 1)))))
+            (Val (Str ""))))))))
+    |}]
+
+  let%expect_test "multi string" =
+    parse_string {|
+      hey (
+        \\\ hello
+        \\\{ 1 + 1 }
+        \\\ world
+      )
+    |}
+    |> Printf.printf !"%{sexp:Ast.expr}";
+    [%expect{|
+      (MBlock
+       ((Command hey ()
+         ((Binary SConcat
+           (Binary SConcat (Val (Str " hello"))
+            (Binary Add (Val (Int 1)) (Val (Int 1))))
+           (Val (Str " world")))))))
     |}]
 
 end)

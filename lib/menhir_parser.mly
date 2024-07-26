@@ -28,9 +28,7 @@
 %token <string> TEMPL_STR_LR
 
 %token <string> MULTISTR_PART
-%token <string> MULTISTR_PART_R
-%token <string> MULTISTR_PART_L
-%token <string> MULTISTR_PART_LR
+%token MULTISTR_INTERPOL
 
 %token <string * string> SIGIL
 %token <string * string * string> SIGIL_REGEX_LIKE
@@ -242,13 +240,48 @@ expr_unary:
   | e=expr_primary { e }
 
 expr_primary: 
-  | LPAREN e=expression RPAREN { e }
+  | LPAREN NL* e=expression NL* RPAREN { e }
   | b=block { b }
   | l=literal { Val(l) }
+  | str=templ_str { str }
+  | str=multi_str { str }
 
 literal:
-    | UNIT { Unit } 
-    | i=DECIMAL_LIT { Int(int_of_string(i)) }
-    | str=LIT_STR { Str str }
-    (* TODO: based integers, MULTISTR_PART, TEMPLATE_STR, SIGILS *)
+  | UNIT { Unit } 
+  | i=DECIMAL_LIT { Int(int_of_string(i)) }
+  | i=HEX_LIT { Int(int_of_string(i)) }
+  | i=OCT_LIT { Int(int_of_string(i)) }
+  | i=BIN_LIT { Int(int_of_string(i)) }
+  | str=LIT_STR { Str str }
+  (* TODO: SIGILS *)
 
+templ_str:
+  | s=TEMPL_STR { Val(Str s) }
+  | s=TEMPL_STR_R s_rest=templ_str_rest { Binary(SConcat, Val(Str s), s_rest) }
+
+templ_str_rest:
+  | NL* e=expression NL* s_last=TEMPL_STR_L
+    {
+      let stringified = Command("stringify", [], [e]) in
+      Binary(SConcat, stringified, Val(Str s_last))
+    }
+  | NL* e=expression NL* s_middle=TEMPL_STR_LR s_rest=templ_str_rest
+    {
+      let stringified = Command("stringify", [], [e]) in
+      Binary(SConcat, Binary(SConcat, stringified, Val(Str s_middle)), s_rest)
+    }
+
+(*%token <string> MULTISTR_PART*)
+(*%token MULTISTR_INTERPOL*)
+multi_str_part:
+    | s=MULTISTR_PART {
+      Val(Str s)
+    }
+    | MULTISTR_INTERPOL e=expression RBRACE NL {
+      e
+    } 
+
+multi_str:
+    | s_head=multi_str_part ss=list(multi_str_part) {
+      List.fold_left (fun acc s -> Binary(SConcat, acc, s)) s_head ss
+    }
