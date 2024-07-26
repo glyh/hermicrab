@@ -6,6 +6,12 @@
   (* TODO: this should be of exitcode type *)
   (*let fail = Val (Int 1)*)
 
+  let make_binary (op: string) lhs rhs =
+    Command(op, [], [lhs; rhs])
+
+  let make_unary op inner =
+    Command(op, [], [inner])
+
 %}
 
 %token NL
@@ -38,14 +44,16 @@
 
 %token LPAREN RPAREN LBRACKET RBRACKET LBRACE RBRACE
 
+%token FSLASH
 %token IF WHEN ELSE FOR DO IN AND_THEN OR_ELSE
+%token TRUE FALSE
 %token PROC
 %token ASSIGN DECLARE
 %token PIPE COMMA COLON SEMICOLON
-%token PLUS MINUS MULT DIV REM
+%token PLUS MINUS MULT DIV MOD
 %token EQ NE LE GE LT GT
-%token AND OR NOT
-%token BSHIFTL BSHIFTR BXOR BAND BOR
+%token AND OR NOT XOR
+%token BSHIFTL BSHIFTR
 %token CONCAT
 
 %start <expr> program_eof
@@ -87,32 +95,40 @@ exp_single:
   | lhs=WORD DECLARE rhs=expression { Assign(lhs, rhs, true) }
 
 tiersLeft(ThisTier, Op, NextTier):
-  | e1=ThisTier op=Op e2=NextTier { Binary(op, e1, e2) }
+  | e1=ThisTier op=Op e2=NextTier { 
+    make_binary op e1 e2
+  }
+  | e=NextTier { e }
+
+tiersLeftF(ThisTier, OpF, NextTier):
+  | e1=ThisTier opf=OpF e2=NextTier { 
+    opf e1 e2
+  }
   | e=NextTier { e }
 
 op_orelse:
-  | OR_ELSE { OrElse }
+  | OR_ELSE { fun lhs rhs -> OrElse(lhs, rhs) }
 op_andthen:
-  | AND_THEN { AndThen }
+  | AND_THEN { fun lhs rhs -> AndThen(lhs, rhs) }
 op_pipe:
-  | PIPE { Pipe }
+  | PIPE { fun lhs rhs -> Pipe(lhs, rhs) }
 
 command_exp_requires_term:
-  | e=tiersLeft(command_exp_requires_term, op_orelse, command_exp_requires_term1) { e }
+  | e=tiersLeftF(command_exp_requires_term, op_orelse, command_exp_requires_term1) { e }
 command_exp_requires_term1:
-  | e=tiersLeft(command_exp_requires_term1, op_andthen, command_exp_requires_term2) { e }
+  | e=tiersLeftF(command_exp_requires_term1, op_andthen, command_exp_requires_term2) { e }
 command_exp_requires_term2:
-  | e=tiersLeft(command_exp_requires_term2, op_pipe, command_exp_requires_term3) { e }
+  | e=tiersLeftF(command_exp_requires_term2, op_pipe, command_exp_requires_term3) { e }
 command_exp_requires_term3:
   | c=command_call_no_nl { c }
 
 command_exp_requires_no_term:
   | ASSIGN e=expression { e }
-  | e=tiersLeft(command_exp_requires_no_term, op_orelse, command_exp_requires_no_term1) { e }
+  | e=tiersLeftF(command_exp_requires_no_term, op_orelse, command_exp_requires_no_term1) { e }
 command_exp_requires_no_term1:
-  | e=tiersLeft(command_exp_requires_no_term1, op_andthen, command_exp_requires_no_term2) { e }
+  | e=tiersLeftF(command_exp_requires_no_term1, op_andthen, command_exp_requires_no_term2) { e }
 command_exp_requires_no_term2:
-  | e=tiersLeft(command_exp_requires_no_term2, op_bor, command_exp_requires_no_term3) { e }
+  | e=tiersLeftF(command_exp_requires_no_term2, op_pipe, command_exp_requires_no_term3) { e }
 
 command_exp_requires_no_term3:
   | LPAREN NL* e=expression NL* RPAREN { e }
@@ -123,6 +139,8 @@ word_arg:
   | dec=DECIMAL_LIT { Just dec }
   | hex=HEX_LIT { Just hex }
   | str=LIT_STR { Just str }
+  | TRUE { Just "true" } 
+  | FALSE { Just "false" } 
   | LBRACKET e=expression RBRACKET { Exp e }
 
 command_call_no_nl:
@@ -149,6 +167,7 @@ args_trail:
 typed_args_no_blk:
   | LPAREN NL* args=args_trail RPAREN { args }
   | LPAREN NL* RPAREN { [] }
+  | UNIT { [] }
 
 typed_args_no_nl:
   | args=typed_args_no_blk blk=option(block) {
@@ -158,62 +177,62 @@ typed_args_no_nl:
   }
 
 op_or:
-  | OR { LOr }
+  | OR { "or" }
 expression:
   | e=tiersLeft(expression, op_or, expr1)  { e }
 
 op_and:
-  | AND { LAnd }
+  | AND { "and" }
 expr1:
   | e=tiersLeft(expr1, op_and, expr2)  { e }
 
 op_rel:
-  | EQ { Eq }
-  | NE { Ne }
-  | LE { Le }
-  | GE { Ge }
-  | LT { Lt }
-  | GT { Gt }
+  | EQ { "==" }
+  | NE { "!=" }
+  | LE { "<=" }
+  | GE { ">=" }
+  | LT { "<" }
+  | GT { ">" }
 expr2:
-  | e=tiersLeft(expr2, op_rel, expr3)  { e }
+  | e=tiersLeft(expr2, op_rel, expr6)  { e }
 
-op_bor:
-  | BOR { BOr }
-expr3:
-  | e=tiersLeft(expr3, op_bor, expr4)  { e }
-
-op_bxor:
-  | BXOR { BXor }
-expr4:
-  | e=tiersLeft(expr4, op_bxor, expr5)  { e }
-
-op_band:
-  | BAND { BAnd }
-expr5:
-  | e=tiersLeft(expr5, op_band, expr6)  { e }
+(*op_bor:*)
+(*  | BOR { "" }*)
+(*expr3:*)
+(*  | e=tiersLeft(expr3, op_bor, expr4)  { e }*)
+(**)
+(*op_bxor:*)
+(*  | BXOR { BXor }*)
+(*expr4:*)
+(*  | e=tiersLeft(expr4, op_bxor, expr5)  { e }*)
+(**)
+(*op_band:*)
+(*  | BAND { BAnd }*)
+(*expr5:*)
+(*  | e=tiersLeft(expr5, op_band, expr6)  { e }*)
 
 op_bshift:
-  | BSHIFTL { BShiftL }
-  | BSHIFTR { BShiftR }
+  | BSHIFTL { "shl" }
+  | BSHIFTR { "shr" }
 
 expr6:
   | e=tiersLeft(expr6, op_bshift, expr7)  { e }
 
 op_concat:
-    | CONCAT { SConcat }
+    | CONCAT { "++" }
 expr7:
   | e=tiersLeft(expr7, op_concat, expr8)  { e }
 
 op_add:
-  | PLUS { Add }
-  | MINUS { Sub }
+  | PLUS { "+" }
+  | MINUS { "-" }
 expr8:
   | e=tiersLeft(expr8, op_add, expr9) { e }
 
 op_mul:
-  | MULT { Mul }
-  | DIV { Div } 
-  | REM { Rem }
+  | MULT { "*" }
+  | DIV { "/" } 
+  | MOD { "mod" }
 expr9:
   | e=tiersLeft(expr9, op_mul, expr_unary) { e }
 
@@ -234,10 +253,10 @@ block:
   }
 
 unop:
-  | NOT { Not }
+  | NOT { "not" }
 
 expr_unary:
-  | op=unop inner=expr_unary { Unary(op, inner) }
+  | op=unop inner=expr_unary { make_unary op inner }
   | e=expr_primary { e }
 
 expr_primary: 
@@ -261,26 +280,27 @@ params_trail:
 params:
   | LPAREN NL* p=params_trail RPAREN { p }
   | LPAREN NL* RPAREN { [] }
+  | UNIT { [] }
 
 proc_lam:
-  | PROC ps=params LBRACE NL* cs=blockRestWithTerm(RBRACE) {
-    ProcLambda(ps, MBlock(cs))
+  | FSLASH ws=list(WORD) ts=params LBRACE NL* cs=blockRestWithTerm(RBRACE) {
+    ProcLam(ws, ts, MBlock(cs))
   }
 
 templ_str:
   | s=TEMPL_STR { Val(Str s) }
-  | s=TEMPL_STR_R s_rest=templ_str_rest { Binary(SConcat, Val(Str s), s_rest) }
+  | s=TEMPL_STR_R s_rest=templ_str_rest { make_binary "++" (Val(Str s)) s_rest }
 
 templ_str_rest:
   | NL* e=expression NL* s_last=TEMPL_STR_L
     {
-      let stringified = Command("stringify", [], [e]) in
-      Binary(SConcat, stringified, Val(Str s_last))
+      let stringified = make_unary "stringify" e in
+      make_binary "++" stringified (Val(Str s_last))
     }
   | NL* e=expression NL* s_middle=TEMPL_STR_LR s_rest=templ_str_rest
     {
-      let stringified = Command("stringify", [], [e]) in
-      Binary(SConcat, Binary(SConcat, stringified, Val(Str s_middle)), s_rest)
+      let stringified = make_unary "stringify" e in
+      make_binary "++" (make_binary "++" stringified (Val(Str s_middle))) s_rest
     }
 
 (*%token <string> MULTISTR_PART*)
@@ -295,11 +315,13 @@ multi_str_part:
 
 multi_str:
     | s_head=multi_str_part ss=list(multi_str_part) {
-      List.fold_left (fun acc s -> Binary(SConcat, acc, s)) s_head ss
+      List.fold_left (fun acc s -> make_binary "++" acc s) s_head ss
     }
 
 literal:
   | UNIT { Unit } 
+  | TRUE { Bool true } 
+  | FALSE { Bool false } 
   | i=DECIMAL_LIT { Int(int_of_string(i)) }
   | i=HEX_LIT { Int(int_of_string(i)) }
   | i=OCT_LIT { Int(int_of_string(i)) }

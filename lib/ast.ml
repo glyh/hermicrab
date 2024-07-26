@@ -6,56 +6,25 @@ type placeholder = unit
 type ident = string
   [@@deriving sexp]
 
-type binop =
-  | Pipe
-  | AndThen
-  | OrElse
-
-  | Add
-  | Sub
-  | Mul
-  | Div
-  | Rem
-
-  | Eq
-  | Ne
-  | Le
-  | Ge
-  | Lt
-  | Gt
-
-  | LAnd
-  | LOr
-
-  | BShiftL
-  | BShiftR
-  | BXor
-  | BAnd
-  | BOr
-  
-  | SConcat
-  [@@deriving sexp]
-
-
-type unop =
-  | Not
-  [@@deriving sexp]
-
 type redirector = placeholder
   [@@deriving sexp]
 
 type value = 
   | Unit
   | Int of int
+  | Bool of bool
   | Str of string
-  (* typed args -> body *)
-  | ProcLambda of ident list * expr
+  (* word args -> typed args -> body *)
+  | ProcLam of ident list * ident list * expr
+  | BuiltInLam of int * int * (string list -> value list -> value)
   [@@deriving sexp]
 
 and expr =
   | Var of ident
   | Val of value
-  | Unary of unop * expr
+  | Pipe of expr * expr
+  | AndThen of expr * expr
+  | OrElse of expr * expr
   | If of expr * expr * expr
   | When of expr * expr
   | For of ident * expr * expr
@@ -65,7 +34,6 @@ and expr =
      for the ease of writing a parser
   *)
   | MBlock of expr list
-  | Binary of binop * expr * expr
   | Assign of ident * expr * bool (* true: is declare, false: not declare *)
   | Command of string * word_arg list * expr list
   | WithRedirection of expr * redirector

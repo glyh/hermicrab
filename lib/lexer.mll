@@ -83,12 +83,14 @@ rule next_token = parse
   | "in" { IN }
   | "and" { AND }
   | "or" { OR }
+  | "not" { NOT }
+  | "xor" { XOR }
   | "shl" { BSHIFTL }
   | "shr" { BSHIFTR }
-  | "bxor" { BXOR }
-  | "band" { BAND }
-  | "bor" { BOR }
   | "proc" { PROC }
+  | "true" { TRUE }
+  | "false" { FALSE }
+  | "mod" { MOD }
   | "()" { UNIT }
   | "&&" { AND_THEN }
   | "||" { OR_ELSE }
@@ -110,7 +112,7 @@ rule next_token = parse
   | '-' { MINUS }
   | '*' { MULT }
   | '/' { DIV }
-  | '%' { REM }
+  | '\\' { FSLASH }
   | '<' { LT }
   | '>' { GT }
   | ';' { SEMICOLON }
