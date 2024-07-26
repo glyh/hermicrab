@@ -15,8 +15,8 @@ Takes place of the shell!
 
 - Clone the repo and init the switch
 ```sh
-git clone https://github.com/glyh/hmc
-cd hmc
+git clone https://github.com/glyh/hermicrab
+cd hermicrab
 opam switch create . --deps-only --with-test -y
 ```
 - For developing, you may want to have LSP and other stuffs available
@@ -29,5 +29,5 @@ eval $(opam env)
 ```
 - Build and run the package
 ```sh
-dune exec hmc
+dune exec hermicrab
 ```
