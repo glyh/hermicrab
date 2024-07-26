@@ -37,9 +37,9 @@ We take inspiration from bash, ruby, perl, tcl and oils.
 
 #### Strings
 ```
-\\\muliline string
-  \\\that has zig syntax
- \\\and is easy to parse
+"""muliline string
+  """that has zig syntax
+ """and is easy to parse
 ```
 
 #### Type system

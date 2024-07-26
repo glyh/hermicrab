@@ -48,7 +48,8 @@ type value =
   | Unit
   | Int of int
   | Str of string
-  | ProcLam of ident list * expr
+  (* typed args -> body *)
+  | ProcLambda of ident list * expr
   [@@deriving sexp]
 
 and expr =

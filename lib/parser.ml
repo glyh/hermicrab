@@ -154,9 +154,9 @@ let%test_module _ = (module struct
   let%expect_test "multi string" =
     parse_string {|
       hey (
-        \\\ hello
-        \\\{ 1 + 1 }
-        \\\ world
+        """ hello
+        """{ 1 + 1 }
+        """ world
       )
     |}
     |> Printf.printf !"%{sexp:Ast.expr}";
@@ -167,6 +167,19 @@ let%test_module _ = (module struct
            (Binary SConcat (Val (Str " hello"))
             (Binary Add (Val (Int 1)) (Val (Int 1))))
            (Val (Str " world")))))))
+    |}]
+
+  let%expect_test "proc lambda" =
+    parse_string {|
+      = proc (a, b, c) { echo (a + b + c) }
+    |}
+    |> Printf.printf !"%{sexp:Ast.expr}";
+    [%expect{|
+(MBlock
+ ((Val
+   (ProcLambda (a b c)
+    (MBlock
+     ((Command echo () ((Binary Add (Binary Add (Var a) (Var b)) (Var c))))))))))
     |}]
 
 end)

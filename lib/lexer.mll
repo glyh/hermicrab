@@ -66,11 +66,11 @@ rule next_token = parse
   | '"' { templ_str_start (Buffer.create 17) lexbuf }
   | "}\"" { templ_str_rest (Buffer.create 17) lexbuf }
  (* zig style multiline string interpolated *)
-  | "\\\\\\{"
+  | "\"\"\"{"
     {
       MULTISTR_INTERPOL
     }
-  | "\\\\\\"
+  | "\"\"\""
     { 
       multiline_string_part (Buffer.create 17) lexbuf
     }
@@ -88,6 +88,7 @@ rule next_token = parse
   | "bxor" { BXOR }
   | "band" { BAND }
   | "bor" { BOR }
+  | "proc" { PROC }
   | "()" { UNIT }
   | "&&" { AND_THEN }
   | "||" { OR_ELSE }

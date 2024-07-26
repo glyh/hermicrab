@@ -39,6 +39,7 @@
 %token LPAREN RPAREN LBRACKET RBRACKET LBRACE RBRACE
 
 %token IF WHEN ELSE FOR DO IN AND_THEN OR_ELSE
+%token PROC
 %token ASSIGN DECLARE
 %token PIPE COMMA COLON SEMICOLON
 %token PLUS MINUS MULT DIV REM
@@ -242,18 +243,29 @@ expr_unary:
 expr_primary: 
   | LPAREN NL* e=expression NL* RPAREN { e }
   | b=block { b }
-  | l=literal { Val(l) }
   | str=templ_str { str }
   | str=multi_str { str }
-
-literal:
-  | UNIT { Unit } 
-  | i=DECIMAL_LIT { Int(int_of_string(i)) }
-  | i=HEX_LIT { Int(int_of_string(i)) }
-  | i=OCT_LIT { Int(int_of_string(i)) }
-  | i=BIN_LIT { Int(int_of_string(i)) }
-  | str=LIT_STR { Str str }
+  | l=literal { Val(l) }
+  | lam=proc_lam { Val lam }
+  | id=WORD { Var(id) }
   (* TODO: SIGILS *)
+
+params_trail:
+  | p=WORD NL* option(comma_nl) {
+        [p]
+  }
+  | p=WORD NL* COMMA NL* ps=params_trail {
+    p :: ps
+  }
+
+params:
+  | LPAREN NL* p=params_trail RPAREN { p }
+  | LPAREN NL* RPAREN { [] }
+
+proc_lam:
+  | PROC ps=params LBRACE NL* cs=blockRestWithTerm(RBRACE) {
+    ProcLambda(ps, MBlock(cs))
+  }
 
 templ_str:
   | s=TEMPL_STR { Val(Str s) }
@@ -285,3 +297,11 @@ multi_str:
     | s_head=multi_str_part ss=list(multi_str_part) {
       List.fold_left (fun acc s -> Binary(SConcat, acc, s)) s_head ss
     }
+
+literal:
+  | UNIT { Unit } 
+  | i=DECIMAL_LIT { Int(int_of_string(i)) }
+  | i=HEX_LIT { Int(int_of_string(i)) }
+  | i=OCT_LIT { Int(int_of_string(i)) }
+  | i=BIN_LIT { Int(int_of_string(i)) }
+  | str=LIT_STR { Str str }
