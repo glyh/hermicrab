@@ -1,8 +1,20 @@
 open Ast
 
-let main () = 
-  Parser.pp_exceptions ();
-  Parser.parse_string {|(1 + 1 * 3 shl 3 | 9 xor 100 and '1' ++ '2' == '12')|}
+let rec user_input prompt callback =
+  match LNoise.linenoise prompt with
+  | None -> ()
+  | Some v ->
+    callback v;
+    user_input prompt callback
+
+let dump_ast source =
+  source
+  |> Parser.parse_string
   |> sexp_of_expr
   |> Sexplib.Sexp.to_string
   |> print_endline
+
+
+let main () = 
+  Parser.pp_exceptions ();
+  dump_ast |> user_input "Hermicrab> "

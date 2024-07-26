@@ -28,6 +28,7 @@
    (core :with-test)
    (ppx_jane :with-test)
    ; (minttea (= 0.0.2))
+   (linenoise (>= 1.5.1))
    (nice_parser (= 1.0.0))
    (alcotest :with-test))
  (tags

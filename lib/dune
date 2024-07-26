@@ -3,6 +3,6 @@
 
 (library
  (name entry)
- (libraries nice_parser core fmt)
+ (libraries nice_parser core fmt linenoise)
  (preprocess (pps ppx_jane))
  (inline_tests))
