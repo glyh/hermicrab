@@ -15,6 +15,7 @@ depends: [
   "menhir" {= "20231231"}
   "core" {with-test}
   "ppx_jane" {with-test}
+  "linenoise" {>= "1.5.1"}
   "nice_parser" {= "1.0.0"}
   "alcotest" {with-test}
   "odoc" {with-doc}
