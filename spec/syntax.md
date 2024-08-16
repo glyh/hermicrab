@@ -17,7 +17,7 @@ We take inspiration from bash, ruby, perl, tcl and oils.
 # but for literals you don't have to
 = 1 # => 1
 = 'I am raw string with byte \x03\xAF support'
-= "I am a $fancy string where you ${interpolates} stuff"
+= "I am a ${fancy} string where you ${interpolates} stuff"
 = 1123123
 = 0x7fff
 = 0b101010101110
@@ -54,11 +54,13 @@ In hmc there's following primitive types
 - range, and span 
   - range can be converted to list[int], and can't contain reverse index
   - span on the other hand, can have one reverse index representation. They can't be convet to list[int]
-- lambdas: `proc (x) { (x + 1) }`
+- lambdas: `\ a b c (x, y, z) { (x + 1) }`
+  - proc definition `proc f a b c (x, y, z) { }`
   - may add `func` keyword later for pure procs
 - atoms 
   - (clojure-like-semantic)
   - ~a(1) an atom storing value 1 inside
+  - Doesn't have to be a sigil.
 - pipeends
   - A generality of file descriptors, they aren't necesssarily backed by a file
   - channel-ends are typed by 2 pair (A, B), where A is the input type and B is the output type

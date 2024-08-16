@@ -176,15 +176,20 @@ typed_args_no_nl:
     | None -> args
   }
 
+op_xor:
+  | XOR { "xor" }
+expression:
+  | e=tiersLeft(expression, op_xor, expr1)  { e }
+
 op_or:
   | OR { "or" }
-expression:
-  | e=tiersLeft(expression, op_or, expr1)  { e }
+expr1:
+  | e=tiersLeft(expr1, op_or, expr2)  { e }
 
 op_and:
   | AND { "and" }
-expr1:
-  | e=tiersLeft(expr1, op_and, expr2)  { e }
+expr2:
+  | e=tiersLeft(expr2, op_and, expr3)  { e }
 
 op_rel:
   | EQ { "==" }
@@ -193,23 +198,8 @@ op_rel:
   | GE { ">=" }
   | LT { "<" }
   | GT { ">" }
-expr2:
-  | e=tiersLeft(expr2, op_rel, expr6)  { e }
-
-(*op_bor:*)
-(*  | BOR { "" }*)
-(*expr3:*)
-(*  | e=tiersLeft(expr3, op_bor, expr4)  { e }*)
-(**)
-(*op_bxor:*)
-(*  | BXOR { BXor }*)
-(*expr4:*)
-(*  | e=tiersLeft(expr4, op_bxor, expr5)  { e }*)
-(**)
-(*op_band:*)
-(*  | BAND { BAnd }*)
-(*expr5:*)
-(*  | e=tiersLeft(expr5, op_band, expr6)  { e }*)
+expr3:
+  | e=tiersLeft(expr3, op_rel, expr6)  { e }
 
 op_bshift:
   | BSHIFTL { "shl" }
@@ -303,8 +293,6 @@ templ_str_rest:
       make_binary "++" (make_binary "++" stringified (Val(Str s_middle))) s_rest
     }
 
-(*%token <string> MULTISTR_PART*)
-(*%token MULTISTR_INTERPOL*)
 multi_str_part:
     | s=MULTISTR_PART {
       Val(Str s)

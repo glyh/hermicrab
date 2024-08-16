@@ -74,8 +74,8 @@ rule next_token = parse
     { 
       multiline_string_part (Buffer.create 17) lexbuf
     }
-  (* TODO: parse sigils *)
-  (* | '~' { sigil lexbuf } *)
+
+  (*| '~' { sigil lexbuf } *)
 
   | "if" { IF }
   | "else" { ELSE }
@@ -222,3 +222,6 @@ and multiline_string_part buf = parse
       Buffer.add_string buf (Lexing.lexeme lexbuf);
       multiline_string_part buf lexbuf
     }
+
+(*and sigil buf = parse*)
+(*  | "~("*)

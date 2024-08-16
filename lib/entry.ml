@@ -21,4 +21,4 @@ let dump_ast source =
 
 let main () = 
   Parser.pp_exceptions ();
-  dump_ast |> user_input "Hermicrab> "
+  dump_ast |> user_input "Hermicrab > "
